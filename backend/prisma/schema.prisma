@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Material {
+  id              Int      @id @default(autoincrement())
+  nome            String
+  quantidadeAtual Float    @default(0)
+  estoqueInicial  Float    @default(0)
+  estoqueMinimo   Float    @default(0)
+  custo           Float    @default(0)
+  ultimoValorPago Float    @default(0)
+  status          StatusMaterial @default(OK)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fornecedorMateriais FornecedorMaterial[]
+  ordemCompraItens    OrdemCompraItem[]
+  historicoEstoque    HistoricoEstoque[]
+
+  @@map("materiais")
+}
+
+enum StatusMaterial {
+  OK
+  BAIXO
+  CRITICO
+}
+
+model Fornecedor {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  tipoFornecedor String?
+  telefone     String?
+  razaoSocial  String?
+  nomeFantasia String?
+  cnpj         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  materiais    FornecedorMaterial[]
+  ordensCompra OrdemCompra[]
+
+  @@map("fornecedores")
+}
+
+model FornecedorMaterial {
+  id              Int      @id @default(autoincrement())
+  fornecedorId    Int
+  materialId      Int
+  custo           Float
+  prazoEntrega    Int?     // em dias
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  fornecedor      Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  material        Material   @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  @@unique([fornecedorId, materialId])
+  @@map("fornecedor_materiais")
+}
+
+model OrdemCompra {
+  id             Int      @id @default(autoincrement())
+  numeroOC       String   @unique
+  data           DateTime
+  formaPagamento String
+  fornecedorId   Int
+  observacoes    String?
+  status         StatusOC @default(EM_ANDAMENTO)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  fornecedor     Fornecedor      @relation(fields: [fornecedorId], references: [id])
+  itens          OrdemCompraItem[]
+  historico      HistoricoEstoque[]
+
+  @@map("ordens_compra")
+}
+
+enum StatusOC {
+  EM_ANDAMENTO
+  FINALIZADO
+  CANCELADO
+}
+
+model OrdemCompraItem {
+  id             Int      @id @default(autoincrement())
+  ordemCompraId  Int
+  materialId     Int
+  quantidade     Float
+  precoUnitario  Float
+  precoTotal     Float
+  prazoEntrega   Int?     // em dias
+  observacoes    String?
+  createdAt      DateTime @default(now())
+
+  ordemCompra    OrdemCompra @relation(fields: [ordemCompraId], references: [id], onDelete: Cascade)
+  material       Material    @relation(fields: [materialId], references: [id])
+
+  @@map("ordem_compra_itens")
+}
+
+model HistoricoEstoque {
+  id             Int      @id @default(autoincrement())
+  materialId     Int
+  ordemCompraId  Int?
+  tipoMovimento  TipoMovimento
+  quantidade     Float
+  quantidadeAntes Float
+  quantidadeDepois Float
+  custo          Float?
+  observacoes    String?
+  createdAt      DateTime @default(now())
+
+  material       Material     @relation(fields: [materialId], references: [id])
+  ordemCompra    OrdemCompra? @relation(fields: [ordemCompraId], references: [id])
+
+  @@map("historico_estoque")
+}
+
+enum TipoMovimento {
+  ENTRADA
+  SAIDA
+}

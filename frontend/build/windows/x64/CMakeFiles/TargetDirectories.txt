@@ -1,0 +1,15 @@
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/CMakeFiles/INSTALL.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/CMakeFiles/ALL_BUILD.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/CMakeFiles/ZERO_CHECK.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/flutter/CMakeFiles/flutter_wrapper_plugin.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/flutter/CMakeFiles/flutter_wrapper_app.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/flutter/CMakeFiles/flutter_assemble.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/flutter/CMakeFiles/INSTALL.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/CMakeFiles/visual_premium_software.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/CMakeFiles/INSTALL.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/CMakeFiles/ALL_BUILD.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/CMakeFiles/INSTALL.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/CMakeFiles/ALL_BUILD.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/shared/CMakeFiles/jni.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/shared/CMakeFiles/INSTALL.dir
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/shared/CMakeFiles/ALL_BUILD.dir

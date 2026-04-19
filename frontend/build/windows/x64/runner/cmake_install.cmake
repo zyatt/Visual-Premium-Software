@@ -1,4 +1,4 @@
-# Install script for directory: C:/visualPremiumSoftware/Visual-Premium-Software/frontend/windows/runner
+# Install script for directory: C:/Visual Premium/Visual-Premium-Software/frontend/windows/runner
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -35,6 +35,6 @@ endif()
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/install_local_manifest.txt"
+  file(WRITE "C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

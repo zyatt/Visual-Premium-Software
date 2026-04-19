@@ -11,7 +11,7 @@ const ordemCompraService = {
     return prisma.ordemCompra.findMany({
       include: {
         fornecedor: true,
-        itens: { include: { material: true } },
+        itens: { include: { material: true, fornecedor: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -22,7 +22,7 @@ const ordemCompraService = {
       where: { id: Number(id) },
       include: {
         fornecedor: true,
-        itens: { include: { material: true } },
+        itens: { include: { material: true, fornecedor: true } },
         historico: {
           include: { material: { select: { nome: true } } },
           orderBy: { createdAt: 'desc' },
@@ -36,32 +36,32 @@ const ordemCompraService = {
   async criar(dados) {
     const { numeroOC, data, formaPagamento, fornecedorId, observacoes, itens = [] } = dados;
 
-    // Verificar se número OC já existe
     const ocExistente = await prisma.ordemCompra.findUnique({ where: { numeroOC } });
     if (ocExistente) throw { status: 409, message: 'Número de OC já cadastrado' };
 
     const oc = await prisma.ordemCompra.create({
       data: {
         numeroOC,
-        data: new Date(data),
-        formaPagamento,
-        fornecedorId: Number(fornecedorId),
-        observacoes,
+        data: data ? new Date(data) : new Date(),
+        ...(formaPagamento ? { formaPagamento } : {}),
+        ...(fornecedorId ? { fornecedorId: Number(fornecedorId) } : {}),
+        ...(observacoes ? { observacoes } : {}),
         status: 'EM_ANDAMENTO',
         itens: {
           create: itens.map((item) => ({
             materialId: Number(item.materialId),
+            ...(item.fornecedorId ? { fornecedorId: Number(item.fornecedorId) } : {}),
             quantidade: item.quantidade,
             precoUnitario: item.precoUnitario,
             precoTotal: item.precoUnitario * item.quantidade,
-            prazoEntrega: item.prazoEntrega,
-            observacoes: item.observacoes,
+            ...(item.prazoEntrega ? { prazoEntrega: item.prazoEntrega } : {}),
+            ...(item.observacoes ? { observacoes: item.observacoes } : {}),
           })),
         },
       },
       include: {
         fornecedor: true,
-        itens: { include: { material: true } },
+        itens: { include: { material: true, fornecedor: true } },
       },
     });
 
@@ -76,7 +76,6 @@ const ordemCompraService = {
 
     const { itens, ...dadosOC } = dados;
 
-    // Se itens fornecidos, substituir todos
     if (itens) {
       await prisma.ordemCompraItem.deleteMany({ where: { ordemCompraId: Number(id) } });
     }
@@ -84,25 +83,30 @@ const ordemCompraService = {
     return prisma.ordemCompra.update({
       where: { id: Number(id) },
       data: {
-        ...dadosOC,
-        data: dadosOC.data ? new Date(dadosOC.data) : undefined,
-        fornecedorId: dadosOC.fornecedorId ? Number(dadosOC.fornecedorId) : undefined,
+        ...(dadosOC.numeroOC !== undefined ? { numeroOC: dadosOC.numeroOC } : {}),
+        ...(dadosOC.data ? { data: new Date(dadosOC.data) } : {}),
+        ...(dadosOC.formaPagamento !== undefined ? { formaPagamento: dadosOC.formaPagamento || null } : {}),
+        ...(dadosOC.fornecedorId !== undefined
+          ? { fornecedorId: dadosOC.fornecedorId ? Number(dadosOC.fornecedorId) : null }
+          : {}),
+        ...(dadosOC.observacoes !== undefined ? { observacoes: dadosOC.observacoes || null } : {}),
         ...(itens && {
           itens: {
             create: itens.map((item) => ({
               materialId: Number(item.materialId),
+              ...(item.fornecedorId ? { fornecedorId: Number(item.fornecedorId) } : {}),
               quantidade: item.quantidade,
               precoUnitario: item.precoUnitario,
               precoTotal: item.precoUnitario * item.quantidade,
-              prazoEntrega: item.prazoEntrega,
-              observacoes: item.observacoes,
+              ...(item.prazoEntrega ? { prazoEntrega: item.prazoEntrega } : {}),
+              ...(item.observacoes ? { observacoes: item.observacoes } : {}),
             })),
           },
         }),
       },
       include: {
         fornecedor: true,
-        itens: { include: { material: true } },
+        itens: { include: { material: true, fornecedor: true } },
       },
     });
   },
@@ -121,14 +125,13 @@ const ordemCompraService = {
   async finalizar(id) {
     const oc = await prisma.ordemCompra.findUnique({
       where: { id: Number(id) },
-      include: { itens: { include: { material: true } } },
+      include: { itens: { include: { material: true, fornecedor: true } } },
     });
     if (!oc) throw { status: 404, message: 'Ordem de compra não encontrada' };
     if (oc.status !== 'EM_ANDAMENTO') {
       throw { status: 400, message: `OC com status "${oc.status}" não pode ser finalizada` };
     }
 
-    // Transação: atualizar estoque e criar histórico
     await prisma.$transaction(async (tx) => {
       for (const item of oc.itens) {
         const material = await tx.material.findUnique({ where: { id: item.materialId } });
@@ -176,11 +179,12 @@ const ordemCompraService = {
       data: {
         ordemCompraId: Number(ordemId),
         materialId: Number(item.materialId),
+        ...(item.fornecedorId ? { fornecedorId: Number(item.fornecedorId) } : {}),
         quantidade: item.quantidade,
         precoUnitario: item.precoUnitario,
         precoTotal: item.precoUnitario * item.quantidade,
-        prazoEntrega: item.prazoEntrega,
-        observacoes: item.observacoes,
+        ...(item.prazoEntrega ? { prazoEntrega: item.prazoEntrega } : {}),
+        ...(item.observacoes ? { observacoes: item.observacoes } : {}),
       },
       include: { material: true },
     });

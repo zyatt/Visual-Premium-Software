@@ -76,18 +76,18 @@ class _SidebarContent extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppTheme.accent,
-                      borderRadius: BorderRadius.circular(10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.asset(
+                      'assets/images/logo.png',
+                      width: 40,
+                      height: 40,
+                      fit: BoxFit.cover,
                     ),
-                    child: const Icon(Icons.warehouse_rounded, color: Colors.white, size: 22),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'EstoqueFlow',
+                    'Visual Premium',
                     style: GoogleFonts.raleway(
                       color: Colors.white,
                       fontSize: 16,
@@ -96,7 +96,7 @@ class _SidebarContent extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Gestão de Compras',
+                    'Gestão de Estoque e Compras',
                     style: GoogleFonts.nunito(
                       color: Colors.white38,
                       fontSize: 11,

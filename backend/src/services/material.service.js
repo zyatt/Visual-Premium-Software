@@ -37,6 +37,14 @@ const materialService = {
 
   async criar(dados) {
     const { nome, quantidadeAtual = 0, estoqueInicial = 0, estoqueMinimo = 0, custo = 0 } = dados;
+
+    const existente = await prisma.material.findFirst({
+      where: { nome: { equals: nome.trim(), mode: 'insensitive' } },
+    });
+    if (existente) {
+      throw { status: 409, message: `Já existe um material cadastrado com o nome "${nome}"` };
+    }
+
     const status = calcularStatus(quantidadeAtual, estoqueMinimo);
 
     const material = await prisma.material.create({
@@ -71,6 +79,18 @@ const materialService = {
   async atualizar(id, dados) {
     const materialExistente = await prisma.material.findUnique({ where: { id: Number(id) } });
     if (!materialExistente) throw { status: 404, message: 'Material não encontrado' };
+
+    if (dados.nome && dados.nome.trim().toLowerCase() !== materialExistente.nome.toLowerCase()) {
+      const conflito = await prisma.material.findFirst({
+        where: {
+          nome: { equals: dados.nome.trim(), mode: 'insensitive' },
+          id: { not: Number(id) },
+        },
+      });
+      if (conflito) {
+        throw { status: 409, message: `Já existe um material cadastrado com o nome "${dados.nome}"` };
+      }
+    }
 
     const { estoqueMinimo = materialExistente.estoqueMinimo, ...rest } = dados;
     const quantidadeAtual = rest.quantidadeAtual ?? materialExistente.quantidadeAtual;

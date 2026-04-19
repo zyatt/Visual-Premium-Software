@@ -22,6 +22,7 @@ model Material {
   ordemCompraItens    OrdemCompraItem[]
   historicoEstoque    HistoricoEstoque[]
 
+  @@unique([nome])
   @@map("materiais")
 }
 
@@ -44,6 +45,7 @@ model Fornecedor {
 
   materiais    FornecedorMaterial[]
   ordensCompra OrdemCompra[]
+  ordemCompraItens OrdemCompraItem[]
 
   @@map("fornecedores")
 }
@@ -68,14 +70,14 @@ model OrdemCompra {
   id             Int      @id @default(autoincrement())
   numeroOC       String   @unique
   data           DateTime
-  formaPagamento String
-  fornecedorId   Int
+  formaPagamento String?
+  fornecedorId   Int?
   observacoes    String?
   status         StatusOC @default(EM_ANDAMENTO)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  fornecedor     Fornecedor      @relation(fields: [fornecedorId], references: [id])
+  fornecedor     Fornecedor?     @relation(fields: [fornecedorId], references: [id])
   itens          OrdemCompraItem[]
   historico      HistoricoEstoque[]
 
@@ -92,6 +94,7 @@ model OrdemCompraItem {
   id             Int      @id @default(autoincrement())
   ordemCompraId  Int
   materialId     Int
+  fornecedorId   Int?
   quantidade     Float
   precoUnitario  Float
   precoTotal     Float
@@ -101,6 +104,7 @@ model OrdemCompraItem {
 
   ordemCompra    OrdemCompra @relation(fields: [ordemCompraId], references: [id], onDelete: Cascade)
   material       Material    @relation(fields: [materialId], references: [id])
+  fornecedor     Fornecedor? @relation(fields: [fornecedorId], references: [id])
 
   @@map("ordem_compra_itens")
 }

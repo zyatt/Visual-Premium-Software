@@ -2,26 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  // Paleta industrial/refinada: azul-ardósia escuro + laranja âmbar
-  static const Color primary = Color(0xFF1A2B4A);
-  static const Color primaryLight = Color(0xFF243B5E);
-  static const Color accent = Color(0xFFE8A020);
-  static const Color accentLight = Color(0xFFFFB84D);
-  static const Color background = Color(0xFFF4F6FA);
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFEEF1F8);
-  static const Color error = Color(0xFFD93025);
-  static const Color success = Color(0xFF1E7E34);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color textPrimary = Color(0xFF0F1D33);
-  static const Color textSecondary = Color(0xFF5A6A82);
-  static const Color textHint = Color(0xFF9AAABB);
-  static const Color divider = Color(0xFFDDE3EE);
-  static const Color statusOk = Color(0xFF16A34A);
-  static const Color statusBaixo = Color(0xFFD97706);
+  // ── Nova paleta ───────────────────────────────────────────
+  static const Color primary       = Color(0xFFFF781F); // laranja principal
+  static const Color primaryDark   = Color(0xFFDC5800); // laranja escuro
+  static const Color primaryLight  = Color(0xFFFF9A52); // laranja claro
+  static const Color accent        = Color(0xFFDC5800); // laranja escuro como accent
+  static const Color accentLight   = Color(0xFFFF781F);
+
+  static const Color black         = Color(0xFF201E1E); // preto do sistema
+  static const Color background    = Color(0xFFF7F4F2); // fundo levemente quente
+  static const Color surface       = Color(0xFFFFFFFF);
+  static const Color surfaceVariant= Color(0xFFF2EDE9); // fundo de campos levemente pêssego
+
+  static const Color error         = Color(0xFFCC2200);
+  static const Color success       = Color(0xFF1E7E34);
+  static const Color warning       = Color(0xFFF59E0B);
+
+  static const Color textPrimary   = Color(0xFF201E1E); // preto base
+  static const Color textSecondary = Color(0xFF5C524D); // marrom-acinzentado
+  static const Color textHint      = Color(0xFFAA9E97); // hint quente
+
+  static const Color divider       = Color(0xFFE8DDD6); // divisor levemente laranja
+  static const Color statusOk      = Color(0xFF16A34A);
+  static const Color statusBaixo   = Color(0xFFD97706);
   static const Color statusCritico = Color(0xFFDC2626);
-  static const Color sidebar = Color(0xFF0F1D33);
-  static const Color sidebarActive = Color(0xFF1A2B4A);
+
+  static const Color sidebar       = Color(0xFF201E1E); // sidebar preta
+  static const Color sidebarActive = Color(0xFF2E2A2A); // active levemente mais clara
 
   static ThemeData get theme {
     return ThemeData(
@@ -30,12 +37,12 @@ class AppTheme {
         brightness: Brightness.light,
         primary: primary,
         onPrimary: Colors.white,
-        primaryContainer: primaryLight,
+        primaryContainer: primaryDark,
         onPrimaryContainer: Colors.white,
         secondary: accent,
         onSecondary: Colors.white,
         secondaryContainer: accentLight,
-        onSecondaryContainer: textPrimary,
+        onSecondaryContainer: Colors.white,
         error: error,
         onError: Colors.white,
         errorContainer: Color(0xFFFFDAD6),
@@ -45,20 +52,22 @@ class AppTheme {
         surfaceContainerHighest: surfaceVariant,
         onSurfaceVariant: textSecondary,
         outline: divider,
-        outlineVariant: Color(0xFFEEF1F8),
-        shadow: Color(0x1A1A2B4A),
+        outlineVariant: Color(0xFFF2EDE9),
+        shadow: Color(0x1A201E1E),
         scrim: Color(0x80000000),
-        inverseSurface: primary,
+        inverseSurface: black,
         onInverseSurface: Colors.white,
-        inversePrimary: accent,
+        inversePrimary: accentLight,
         surfaceTint: primary,
       ),
       textTheme: GoogleFonts.nunitoTextTheme().copyWith(
         displayLarge: GoogleFonts.raleway(
-          fontSize: 32, fontWeight: FontWeight.w700, color: textPrimary, letterSpacing: -0.5,
+          fontSize: 32, fontWeight: FontWeight.w700,
+          color: textPrimary, letterSpacing: -0.5,
         ),
         displayMedium: GoogleFonts.raleway(
-          fontSize: 26, fontWeight: FontWeight.w700, color: textPrimary, letterSpacing: -0.3,
+          fontSize: 26, fontWeight: FontWeight.w700,
+          color: textPrimary, letterSpacing: -0.3,
         ),
         headlineLarge: GoogleFonts.raleway(
           fontSize: 22, fontWeight: FontWeight.w700, color: textPrimary,
@@ -75,9 +84,9 @@ class AppTheme {
         titleMedium: GoogleFonts.nunito(
           fontSize: 14, fontWeight: FontWeight.w600, color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.nunito(fontSize: 15, color: textPrimary),
+        bodyLarge:  GoogleFonts.nunito(fontSize: 15, color: textPrimary),
         bodyMedium: GoogleFonts.nunito(fontSize: 14, color: textSecondary),
-        bodySmall: GoogleFonts.nunito(fontSize: 12, color: textHint),
+        bodySmall:  GoogleFonts.nunito(fontSize: 12, color: textHint),
         labelLarge: GoogleFonts.nunito(
           fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5,
         ),
@@ -88,7 +97,7 @@ class AppTheme {
         foregroundColor: textPrimary,
         elevation: 0,
         scrolledUnderElevation: 1,
-        shadowColor: const Color(0x1A1A2B4A),
+        shadowColor: const Color(0x1A201E1E),
         titleTextStyle: GoogleFonts.raleway(
           fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary,
         ),
@@ -158,13 +167,13 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: accent,
+        backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: primary,
+        backgroundColor: black,
         contentTextStyle: GoogleFonts.nunito(color: Colors.white, fontSize: 14),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

@@ -1,0 +1,10 @@
+^C:\VISUALPREMIUMSOFTWARE\VISUAL-PREMIUM-SOFTWARE\FRONTEND\BUILD\WINDOWS\X64\CMAKEFILES\91AD1E5193A4C6120DD8F10470B253B4\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SC:/visualPremiumSoftware/Visual-Premium-Software/frontend/windows -BC:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64 --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/visual_premium_software.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

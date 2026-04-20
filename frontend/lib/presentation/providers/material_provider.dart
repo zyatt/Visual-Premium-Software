@@ -12,6 +12,8 @@ class MaterialProvider extends ChangeNotifier {
   String? _error;
 
   List<MaterialModel> get materiais => _materiais;
+  List<MaterialModel> get materiaisAtivos =>           // <-- ADICIONADO
+      _materiais.where((m) => m.status != 'INATIVO').toList();
   List<HistoricoEstoque> get historico => _historico;
   bool get loading => _loading;
   String? get error => _error;
@@ -99,6 +101,32 @@ class MaterialProvider extends ChangeNotifier {
 
   Future<List<HistoricoEstoque>> buscarHistoricoMaterial(int id) async {
     return _repo.buscarHistorico(id);
+  }
+
+  Future<bool> desativar(int id) async {
+    try {
+      final m = await _repo.atualizar(id, {'status': 'INATIVO'});
+      final idx = _materiais.indexWhere((x) => x.id == id);
+      if (idx != -1) _materiais[idx] = m;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> reativar(int id) async {
+    try {
+      final m = await _repo.atualizar(id, {'reativar': true});
+      final idx = _materiais.indexWhere((x) => x.id == id);
+      if (idx != -1) _materiais[idx] = m;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    }
   }
 
   void clearError() { _error = null; notifyListeners(); }

@@ -33,15 +33,19 @@ const ordemCompraService = {
     return oc;
   },
 
-  async criar(dados) {
-    const { numeroOC, data, formaPagamento, fornecedorId, observacoes, itens = [] } = dados;
+  async proximoNumero() {
+    const ultima = await prisma.ordemCompra.findFirst({
+      orderBy: { numeroOC: 'desc' },
+      select: { numeroOC: true },
+    });
+    return { proximoNumero: ultima ? ultima.numeroOC + 1 : 1 };
+  },
 
-    const ocExistente = await prisma.ordemCompra.findUnique({ where: { numeroOC } });
-    if (ocExistente) throw { status: 409, message: 'Número de OC já cadastrado' };
+  async criar(dados) {
+    const { data, formaPagamento, fornecedorId, observacoes, itens = [] } = dados;
 
     const oc = await prisma.ordemCompra.create({
       data: {
-        numeroOC,
         data: data ? new Date(data) : new Date(),
         ...(formaPagamento ? { formaPagamento } : {}),
         ...(fornecedorId ? { fornecedorId: Number(fornecedorId) } : {}),
@@ -194,6 +198,48 @@ const ordemCompraService = {
     return prisma.ordemCompraItem.delete({
       where: { id: Number(itemId) },
     });
+  },
+
+  async listarHistorico({ dataInicio, dataFim } = {}) {
+    const where = {
+      tipoMovimento: 'ENTRADA',
+      ordemCompraId: { not: null },
+    };
+
+    if (dataInicio || dataFim) {
+      where.createdAt = {};
+      if (dataInicio) where.createdAt.gte = new Date(dataInicio);
+      if (dataFim)    where.createdAt.lte = new Date(dataFim);
+    }
+
+    const registros = await prisma.historicoEstoque.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        material: { select: { nome: true } },
+        ordemCompra: {
+          select: {
+            numeroOC: true,
+            fornecedor: { select: { nome: true } },
+          },
+        },
+      },
+    });
+
+    return registros.map((r) => ({
+      id:               r.id,
+      ordemCompraId:    r.ordemCompraId,
+      numeroOC:         r.ordemCompra?.numeroOC ?? 0,
+      materialId:       r.materialId,
+      materialNome:     r.material?.nome ?? `Material ${r.materialId}`,
+      fornecedorNome:   r.ordemCompra?.fornecedor?.nome ?? null,
+      quantidade:       r.quantidade,
+      quantidadeAntes:  r.quantidadeAntes,
+      quantidadeDepois: r.quantidadeDepois,
+      custo:            r.custo,
+      observacoes:      r.observacoes ?? null,
+      data:             r.createdAt.toISOString(),
+    }));
   },
 };
 

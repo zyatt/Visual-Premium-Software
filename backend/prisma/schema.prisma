@@ -9,6 +9,7 @@ datasource db {
 model Material {
   id              Int      @id @default(autoincrement())
   nome            String
+  unidade         String?
   quantidadeAtual Float    @default(0)
   estoqueInicial  Float    @default(0)
   estoqueMinimo   Float    @default(0)
@@ -30,6 +31,7 @@ enum StatusMaterial {
   OK
   BAIXO
   CRITICO
+  INATIVO
 }
 
 model Fornecedor {
@@ -68,7 +70,7 @@ model FornecedorMaterial {
 
 model OrdemCompra {
   id             Int      @id @default(autoincrement())
-  numeroOC       String   @unique
+  numeroOC       Int      @unique @default(autoincrement())
   data           DateTime
   formaPagamento String?
   fornecedorId   Int?

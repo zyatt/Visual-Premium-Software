@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/ordem_compra_model.dart';
+import '../../data/models/historico_compra_model.dart';
 import '../../data/repositories/ordem_compra_repository.dart';
 
 class OrdemCompraProvider extends ChangeNotifier {
@@ -9,9 +10,15 @@ class OrdemCompraProvider extends ChangeNotifier {
   bool _loading = false;
   String? _error;
 
+  List<HistoricoCompraEntry> _historico = [];
+  bool _loadingHistorico = false;
+
   List<OrdemCompra> get ordens => _ordens;
   bool get loading => _loading;
   String? get error => _error;
+
+  List<HistoricoCompraEntry> get historico => _historico;
+  bool get loadingHistorico => _loadingHistorico;
 
   List<OrdemCompra> get ordensEmAndamento =>
       _ordens.where((o) => o.status == 'EM_ANDAMENTO').toList();
@@ -22,6 +29,15 @@ class OrdemCompraProvider extends ChangeNotifier {
 
   void _setLoading(bool v) { _loading = v; notifyListeners(); }
   void _setError(String? v) { _error = v; notifyListeners(); }
+
+  Future<int?> buscarProximoNumero() async {
+    try {
+      return await _repo.buscarProximoNumero();
+    } catch (e) {
+      _setError(e.toString());
+      return null;
+    }
+  }
 
   Future<void> carregarOrdens() async {
     _setLoading(true);
@@ -114,6 +130,26 @@ class OrdemCompraProvider extends ChangeNotifier {
     } catch (e) {
       _setError(e.toString());
       return false;
+    }
+  }
+
+  Future<void> carregarHistorico({
+    DateTime? dataInicio,
+    DateTime? dataFim,
+  }) async {
+    _loadingHistorico = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _historico = await _repo.listarHistorico(
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+      );
+    } catch (e) {
+      _setError(e.toString());
+    } finally {
+      _loadingHistorico = false;
+      notifyListeners();
     }
   }
 

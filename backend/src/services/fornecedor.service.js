@@ -5,6 +5,9 @@ const fornecedorService = {
     return prisma.fornecedor.findMany({
       include: {
         materiais: {
+          where: {
+            material: { status: { not: 'INATIVO' } },
+          },
           include: { material: true },
         },
       },
@@ -17,6 +20,9 @@ const fornecedorService = {
       where: { id: Number(id) },
       include: {
         materiais: {
+          where: {
+            material: { status: { not: 'INATIVO' } },
+          },
           include: { material: true },
         },
       },

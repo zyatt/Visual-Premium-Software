@@ -13,6 +13,7 @@ const comparativoService = {
     });
 
     if (!material) throw { status: 404, message: 'Material não encontrado' };
+    if (material.status === 'INATIVO') throw { status: 404, message: 'Material não encontrado' };
     if (!material.fornecedorMateriais.length) {
       return { material, fornecedores: [], melhorFornecedor: null };
     }
@@ -52,7 +53,9 @@ const comparativoService = {
 
     if (!oc) throw { status: 404, message: 'Ordem de compra não encontrada' };
 
-    const comparativos = oc.itens.map((item) => {
+    const comparativos = oc.itens
+      .filter((item) => item.material.status !== 'INATIVO')
+      .map((item) => {
       const fornecedores = item.material.fornecedorMateriais.map((fm, idx) => ({
         fornecedorId: fm.fornecedorId,
         fornecedorNome: fm.fornecedor.nome,

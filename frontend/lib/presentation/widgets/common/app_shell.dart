@@ -16,6 +16,7 @@ class AppShell extends StatelessWidget {
     _NavItem(icon: Icons.compare_arrows_rounded, label: 'Comparativo', route: '/comparativo'),
     _NavItem(icon: Icons.receipt_long_rounded, label: 'Ordem de Compra', route: '/ordens-compra'),
     _NavItem(icon: Icons.tune_rounded, label: 'Controle de Estoque', route: '/controle-estoque'),
+    _NavItem(icon: Icons.tune_rounded, label: 'Histórico de Compras', route: '/historico-compras'),
   ];
 
   @override

@@ -147,7 +147,7 @@ class _InfoCard extends StatelessWidget {
           StatusBadge(status: oc.status),
         ]),
         const SizedBox(height: 16),
-        _InfoRow('Nº OC', oc.numeroOC),
+        _InfoRow('Nº OC', oc.numeroOC.toString()),
         _InfoRow('Data', AppUtils.formatDate(oc.data)),
         if (oc.fornecedor != null) _InfoRow('Fornecedor', oc.fornecedor!.nome),
         if (oc.formaPagamento != null)

@@ -225,7 +225,7 @@ class _HistoricoMovimentacoes extends StatelessWidget {
         final h = historico[i];
         final isEntrada = h.tipoMovimento == 'ENTRADA';
         final matNome = (h.material?['nome'] as String?) ?? 'Material';
-        final ocNum = (h.ordemCompra?['numeroOC'] as String?);
+        final ocNum = h.ordemCompra?['numeroOC']?.toString();
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
           leading: Container(

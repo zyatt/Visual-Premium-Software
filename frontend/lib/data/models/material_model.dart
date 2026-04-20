@@ -1,6 +1,7 @@
 class MaterialModel  {
   final int id;
   final String nome;
+  final String? unidade;
   final double quantidadeAtual;
   final double estoqueInicial;
   final double estoqueMinimo;
@@ -13,6 +14,7 @@ class MaterialModel  {
   const MaterialModel ({
     required this.id,
     required this.nome,
+    this.unidade,
     required this.quantidadeAtual,
     required this.estoqueInicial,
     required this.estoqueMinimo,
@@ -28,6 +30,7 @@ class MaterialModel  {
   factory MaterialModel.fromJson(Map<String, dynamic> json) => MaterialModel(
     id: json['id'],
     nome: json['nome'],
+    unidade: json['unidade'] as String?,
     quantidadeAtual: (json['quantidadeAtual'] as num).toDouble(),
     estoqueInicial: (json['estoqueInicial'] as num).toDouble(),
     estoqueMinimo: (json['estoqueMinimo'] as num).toDouble(),
@@ -40,6 +43,7 @@ class MaterialModel  {
 
   Map<String, dynamic> toJson() => {
     'nome': nome,
+    'unidade': unidade,
     'quantidadeAtual': quantidadeAtual,
     'estoqueInicial': estoqueInicial,
     'estoqueMinimo': estoqueMinimo,
@@ -48,12 +52,13 @@ class MaterialModel  {
   };
 
   MaterialModel copyWith({
-    int? id, String? nome, double? quantidadeAtual, double? estoqueInicial,
+    int? id, String? nome, String? unidade, double? quantidadeAtual, double? estoqueInicial,
     double? estoqueMinimo, double? custo, double? ultimoValorPago,
     String? status, DateTime? createdAt, DateTime? updatedAt,
   }) => MaterialModel(
     id: id ?? this.id,
     nome: nome ?? this.nome,
+    unidade: unidade ?? this.unidade,
     quantidadeAtual: quantidadeAtual ?? this.quantidadeAtual,
     estoqueInicial: estoqueInicial ?? this.estoqueInicial,
     estoqueMinimo: estoqueMinimo ?? this.estoqueMinimo,

@@ -2,6 +2,11 @@ const ordemCompraService = require('../services/ordemCompra.service');
 const { asyncHandler } = require('../middlewares/errorHandler');
 
 const ordemCompraController = {
+  proximoNumero: asyncHandler(async (req, res) => {
+    const result = await ordemCompraService.proximoNumero();
+    res.json(result);
+  }),
+
   listarTodos: asyncHandler(async (req, res) => {
     const ordens = await ordemCompraService.listarTodos();
     res.json(ordens);
@@ -40,6 +45,15 @@ const ordemCompraController = {
   removerItem: asyncHandler(async (req, res) => {
     await ordemCompraService.removerItem(req.params.id, req.params.itemId);
     res.status(204).send();
+  }),
+
+  listarHistorico: asyncHandler(async (req, res) => {
+    const { dataInicio, dataFim } = req.query;
+    const historico = await ordemCompraService.listarHistorico({
+      dataInicio: dataInicio ? new Date(dataInicio) : undefined,
+      dataFim:    dataFim    ? new Date(dataFim)    : undefined,
+    });
+    res.json(historico);
   }),
 };
 

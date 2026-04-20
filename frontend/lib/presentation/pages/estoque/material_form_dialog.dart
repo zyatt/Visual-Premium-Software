@@ -17,6 +17,7 @@ class MaterialFormDialog extends StatefulWidget {
 class _MaterialFormDialogState extends State<MaterialFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final _nome = TextEditingController();
+  final _unidade = TextEditingController();
   final _qtdAtual = TextEditingController();
   final _estoqueInicial = TextEditingController();
   final _estoqueMinimo = TextEditingController();
@@ -37,6 +38,7 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
     if (_isEdit) {
       final m = widget.material!;
       _nome.text = m.nome;
+      _unidade.text = m.unidade ?? '';
       _qtdAtual.text = m.quantidadeAtual.toString();
       _estoqueInicial.text = m.estoqueInicial.toString();
       _estoqueMinimo.text = m.estoqueMinimo.toString();
@@ -54,7 +56,7 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _nome.dispose(); _qtdAtual.dispose(); _estoqueInicial.dispose();
+    _nome.dispose(); _unidade.dispose(); _qtdAtual.dispose(); _estoqueInicial.dispose();
     _estoqueMinimo.dispose(); _custo.dispose(); _ultimoValorPago.dispose();
     super.dispose();
   }
@@ -99,6 +101,7 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
 
     final dados = {
       'nome': _nome.text.trim(),
+      'unidade': _unidade.text.trim().isEmpty ? null : _unidade.text.trim(),
       'quantidadeAtual': double.tryParse(_qtdAtual.text) ?? 0,
       'estoqueInicial': double.tryParse(_estoqueInicial.text) ?? 0,
       'estoqueMinimo': double.tryParse(_estoqueMinimo.text) ?? 0,
@@ -178,6 +181,14 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
                               ? const Icon(Icons.check_circle_rounded, color: AppTheme.statusOk, size: 20)
                               : null,
                 ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // Campo unidade
+              AppTextField(
+                label: 'Unidade (ex: kg, m², pç, L)',
+                controller: _unidade,
               ),
 
               const SizedBox(height: 14),

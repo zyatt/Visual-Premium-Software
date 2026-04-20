@@ -55,7 +55,7 @@ class OrdemCompraItem {
 
 class OrdemCompra {
   final int id;
-  final String numeroOC;
+  final int numeroOC;
   final DateTime data;
   final String? formaPagamento;
   final int? fornecedorId;
@@ -84,7 +84,7 @@ class OrdemCompra {
 
   factory OrdemCompra.fromJson(Map<String, dynamic> json) => OrdemCompra(
     id: json['id'],
-    numeroOC: json['numeroOC'],
+    numeroOC: json['numeroOC'] is int ? json['numeroOC'] : int.parse(json['numeroOC'].toString()),
     data: DateTime.parse(json['data']),
     formaPagamento: json['formaPagamento'],
     fornecedorId: json['fornecedorId'],
@@ -100,7 +100,6 @@ class OrdemCompra {
   );
 
   Map<String, dynamic> toJson() => {
-    'numeroOC': numeroOC,
     'data': data.toIso8601String(),
     if (formaPagamento != null) 'formaPagamento': formaPagamento,
     if (fornecedorId != null) 'fornecedorId': fornecedorId,

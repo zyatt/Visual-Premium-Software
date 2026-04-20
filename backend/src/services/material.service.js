@@ -36,7 +36,7 @@ const materialService = {
   },
 
   async criar(dados) {
-    const { nome, quantidadeAtual = 0, estoqueInicial = 0, estoqueMinimo = 0, custo = 0 } = dados;
+    const { nome, quantidadeAtual = 0, estoqueInicial = 0, estoqueMinimo = 0, custo = 0, unidade } = dados;
 
     const existente = await prisma.material.findFirst({
       where: { nome: { equals: nome.trim(), mode: 'insensitive' } },
@@ -50,6 +50,7 @@ const materialService = {
     const material = await prisma.material.create({
       data: {
         nome,
+        unidade: unidade ?? null,
         quantidadeAtual,
         estoqueInicial,
         estoqueMinimo,
@@ -58,7 +59,6 @@ const materialService = {
       },
     });
 
-    // Registrar entrada inicial se houver
     if (estoqueInicial > 0) {
       await prisma.historicoEstoque.create({
         data: {
@@ -80,6 +80,27 @@ const materialService = {
     const materialExistente = await prisma.material.findUnique({ where: { id: Number(id) } });
     if (!materialExistente) throw { status: 404, message: 'Material não encontrado' };
 
+    // ── Reativar: recalcula status, nunca passa a flag ao Prisma ─────────────
+    if (dados.reativar === true) {
+      const novoStatus = calcularStatus(
+        materialExistente.quantidadeAtual,
+        materialExistente.estoqueMinimo
+      );
+      return prisma.material.update({
+        where: { id: Number(id) },
+        data: { status: novoStatus },
+      });
+    }
+
+    // ── Desativar ─────────────────────────────────────────────────────────────
+    if (dados.status === 'INATIVO') {
+      return prisma.material.update({
+        where: { id: Number(id) },
+        data: { status: 'INATIVO' },
+      });
+    }
+
+    // ── Atualização normal ────────────────────────────────────────────────────
     if (dados.nome && dados.nome.trim().toLowerCase() !== materialExistente.nome.toLowerCase()) {
       const conflito = await prisma.material.findFirst({
         where: {
@@ -92,7 +113,9 @@ const materialService = {
       }
     }
 
-    const { estoqueMinimo = materialExistente.estoqueMinimo, ...rest } = dados;
+    // Remove campos não pertencentes ao schema antes de passar ao Prisma
+    const { reativar, ...dadosFiltrados } = dados;
+    const { estoqueMinimo = materialExistente.estoqueMinimo, ...rest } = dadosFiltrados;
     const quantidadeAtual = rest.quantidadeAtual ?? materialExistente.quantidadeAtual;
     const status = calcularStatus(quantidadeAtual, estoqueMinimo);
 
@@ -103,9 +126,20 @@ const materialService = {
   },
 
   async deletar(id) {
-    await prisma.material.findUnique({ where: { id: Number(id) } }) ||
-      (() => { throw { status: 404, message: 'Material não encontrado' }; })();
-    return prisma.material.delete({ where: { id: Number(id) } });
+    const material = await prisma.material.findUnique({ where: { id: Number(id) } });
+    if (!material) throw { status: 404, message: 'Material não encontrado' };
+
+    const [materialAtualizado] = await prisma.$transaction([
+      prisma.material.update({
+        where: { id: Number(id) },
+        data: { status: 'INATIVO' },
+      }),
+      prisma.fornecedorMaterial.deleteMany({
+        where: { materialId: Number(id) },
+      }),
+    ]);
+
+    return materialAtualizado;
   },
 
   async registrarSaida(id, quantidade, observacoes) {

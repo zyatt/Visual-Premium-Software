@@ -6,7 +6,6 @@ import '../../providers/ordem_compra_provider.dart';
 import '../../widgets/common/common_widgets.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_utils.dart';
-import '../../../data/models/material_model.dart';
 import '../../../data/repositories/comparativo_repository.dart';
 
 class ComparativoPage extends StatefulWidget {
@@ -17,8 +16,12 @@ class ComparativoPage extends StatefulWidget {
 
 class _ComparativoPageState extends State<ComparativoPage> {
   final _repo = ComparativoRepository();
-  MaterialModel? _materialSelecionado;
-  Map<String, dynamic>? _resultado;
+
+  /// IDs dos materiais selecionados para comparação múltipla
+  final Set<int> _selecionados = {};
+
+  /// Resultados indexados por materialId
+  List<Map<String, dynamic>> _resultados = [];
   bool _loading = false;
   String? _error;
 
@@ -32,20 +35,28 @@ class _ComparativoPageState extends State<ComparativoPage> {
   }
 
   Future<void> _buscar() async {
-    if (_materialSelecionado == null) return;
-    setState(() { _loading = true; _error = null; _resultado = null; });
+    if (_selecionados.isEmpty) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+      _resultados = [];
+    });
     try {
-      final r = await _repo.compararMaterial(_materialSelecionado!.id);
-      setState(() { _resultado = r; _loading = false; });
+      final lista = await _repo.compararMultiplosMateriais(_selecionados.toList());
+      setState(() {
+        _resultados = lista.cast<Map<String, dynamic>>();
+        _loading = false;
+      });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
-  /// Abre dialog para escolher qual OC em andamento receber o item
-  Future<void> _adicionarAOC(Map<String, dynamic> fornecedor) async {
-    if (_materialSelecionado == null) return;
-
+  Future<void> _adicionarAOC(
+      Map<String, dynamic> fornecedor, int materialId) async {
     final prov = context.read<OrdemCompraProvider>();
     final ordensEmAndamento = prov.ordensEmAndamento;
 
@@ -59,33 +70,34 @@ class _ComparativoPageState extends State<ComparativoPage> {
       return;
     }
 
-    // Dialog para selecionar a OC e preencher qtd/preço
     await showDialog(
       context: context,
       builder: (ctx) => _AdicionarAOCDialog(
-        material: _materialSelecionado!,
+        materialId: materialId,
         fornecedor: fornecedor,
         ordensEmAndamento: ordensEmAndamento,
         onConfirmar: (ordemId) async {
           final item = {
-            'materialId': _materialSelecionado!.id,
-            if (fornecedor['fornecedorId'] != null) 'fornecedorId': fornecedor['fornecedorId'],
+            'materialId': materialId,
+            if (fornecedor['fornecedorId'] != null)
+              'fornecedorId': fornecedor['fornecedorId'],
             'quantidade': 1.0,
-            'precoUnitario': (fornecedor['custo'] as num?)?.toDouble() ?? 0,
-            if (fornecedor['prazoEntrega'] != null) 'prazoEntrega': fornecedor['prazoEntrega'],
+            'precoUnitario':
+                (fornecedor['custo'] as num?)?.toDouble() ?? 0,
+            if (fornecedor['prazoEntrega'] != null)
+              'prazoEntrega': fornecedor['prazoEntrega'],
           };
 
           final result = await prov.adicionarItem(ordemId, item);
-
           if (ctx.mounted) Navigator.pop(ctx);
-
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result != null
                   ? 'Item adicionado à OC com sucesso!'
                   : prov.error ?? 'Erro ao adicionar item'),
-              backgroundColor: result != null ? AppTheme.statusOk : AppTheme.error,
+              backgroundColor:
+                  result != null ? AppTheme.statusOk : AppTheme.error,
             ),
           );
         },
@@ -95,69 +107,130 @@ class _ComparativoPageState extends State<ComparativoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final materiais = context.watch<MaterialProvider>().materiais;
+    final materiais = context
+        .watch<MaterialProvider>()
+        .materiais
+        .where((m) => m.status != 'INATIVO')
+        .toList();
 
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Column(children: [
         const PageHeader(
-            title: 'Comparativo de Fornecedores',
-            subtitle: 'Compare preços por material'),
+          title: 'Comparativo de Fornecedores',
+          subtitle: 'Compare preços por material',
+        ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.divider)),
-                child: Row(children: [
-                  Expanded(
-                    child: DropdownButtonFormField<MaterialModel?>(
-                      initialValue: materiais.where((m) => m.id == _materialSelecionado?.id).firstOrNull,
-                      decoration: const InputDecoration(
-                          labelText: 'Selecione o Material', isDense: true),
-                      items: [
-                        const DropdownMenuItem<MaterialModel?>(
-                            value: null, child: Text('— Selecione —')),
-                        ...materiais
-                            .map<DropdownMenuItem<MaterialModel?>>((m) =>
-                                DropdownMenuItem<MaterialModel?>(
-                                    value: m, child: Text(m.nome)))
-                            ,
-                      ],
-                      onChanged: (v) => setState(() {
-                        _materialSelecionado = v;
-                        _resultado = null;
-                      }),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Painel de seleção múltipla ──
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppTheme.divider)),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Text('Selecionar Materiais',
+                                style: GoogleFonts.raleway(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700)),
+                            const Spacer(),
+                            if (_selecionados.isNotEmpty)
+                              TextButton(
+                                onPressed: () =>
+                                    setState(() => _selecionados.clear()),
+                                child: const Text('Limpar seleção'),
+                              ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.compare_arrows_rounded,
+                                  size: 16),
+                              label: Text(_selecionados.isEmpty
+                                  ? 'Selecione ao menos 1'
+                                  : 'Comparar (${_selecionados.length})'),
+                              onPressed: _selecionados.isEmpty || _loading
+                                  ? null
+                                  : _buscar,
+                            ),
+                          ]),
+                          const SizedBox(height: 12),
+                          if (materiais.isEmpty)
+                            Text('Nenhum material ativo disponível.',
+                                style: GoogleFonts.nunito(
+                                    fontSize: 13,
+                                    color: AppTheme.textHint))
+                          else
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: materiais.map((m) {
+                                final sel = _selecionados.contains(m.id);
+                                return FilterChip(
+                                  label: Text(m.nome,
+                                      style: GoogleFonts.nunito(
+                                          fontSize: 12,
+                                          fontWeight: sel
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                          color: sel
+                                              ? Colors.white
+                                              : AppTheme.textPrimary)),
+                                  selected: sel,
+                                  onSelected: (_) => setState(() {
+                                    if (sel) {
+                                      _selecionados.remove(m.id);
+                                    } else {
+                                      _selecionados.add(m.id);
+                                    }
+                                  }),
+                                  selectedColor: AppTheme.primary,
+                                  checkmarkColor: Colors.white,
+                                  backgroundColor: AppTheme.surfaceVariant,
+                                  side: BorderSide(
+                                    color: sel
+                                        ? AppTheme.primary
+                                        : AppTheme.divider,
+                                  ),
+                                  showCheckmark: true,
+                                );
+                              }).toList(),
+                            ),
+                        ]),
+                  ),
+                  const SizedBox(height: 24),
+
+                  if (_loading) const LoadingWidget(),
+                  if (_error != null) ErrorWidget2(message: _error!),
+
+                  // ── Resultados ──
+                  if (_resultados.isNotEmpty)
+                    ..._resultados.map((r) => Padding(
+                          padding: const EdgeInsets.only(bottom: 24),
+                          child: _ResultadoComparativo(
+                            resultado: r,
+                            onAdicionarAOC: (fornecedor) {
+                              final mat = r['material'] as Map<String, dynamic>?;
+                              final matId = mat?['id'] as int? ?? 0;
+                              _adicionarAOC(fornecedor, matId);
+                            },
+                          ),
+                        )),
+
+                  if (_resultados.isEmpty && !_loading && _error == null)
+                    const EmptyState(
+                      icon: Icons.compare_arrows_rounded,
+                      title: 'Selecione os materiais',
+                      message:
+                          'Marque um ou mais materiais acima e clique em "Comparar" para ver a comparação de preços entre fornecedores.',
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.compare_arrows_rounded, size: 16),
-                    label: const Text('Comparar'),
-                    onPressed: _materialSelecionado == null || _loading ? null : _buscar,
-                  ),
                 ]),
-              ),
-              const SizedBox(height: 24),
-              if (_loading) const LoadingWidget(),
-              if (_error != null) ErrorWidget2(message: _error!),
-              if (_resultado != null)
-                _ResultadoComparativo(
-                  resultado: _resultado!,
-                  onAdicionarAOC: _adicionarAOC,
-                ),
-              if (_resultado == null && !_loading && _error == null)
-                const EmptyState(
-                  icon: Icons.compare_arrows_rounded,
-                  title: 'Selecione um material',
-                  message:
-                      'Escolha um material para ver a comparação de preços entre fornecedores.',
-                ),
-            ]),
           ),
         ),
       ]),
@@ -165,16 +238,16 @@ class _ComparativoPageState extends State<ComparativoPage> {
   }
 }
 
-// ─── Dialog ────────────────────────────────────────────────────────────────
+// ─── Dialog Adicionar à OC ──────────────────────────────────────────────────
 
 class _AdicionarAOCDialog extends StatefulWidget {
-  final MaterialModel material;
+  final int materialId;
   final Map<String, dynamic> fornecedor;
   final List ordensEmAndamento;
   final Future<void> Function(int ordemId) onConfirmar;
 
   const _AdicionarAOCDialog({
-    required this.material,
+    required this.materialId,
     required this.fornecedor,
     required this.ordensEmAndamento,
     required this.onConfirmar,
@@ -185,109 +258,99 @@ class _AdicionarAOCDialog extends StatefulWidget {
 }
 
 class _AdicionarAOCDialogState extends State<_AdicionarAOCDialog> {
-  dynamic _ocSelecionada;
-  bool _loading = false;
+  int? _ordemSelecionadaId;
+  bool _salvando = false;
 
   @override
   void initState() {
     super.initState();
-    _ocSelecionada = widget.ordensEmAndamento.first;
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
+    if (widget.ordensEmAndamento.isNotEmpty) {
+      _ordemSelecionadaId = widget.ordensEmAndamento.first.id as int;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Adicionar à OC',
-          style: GoogleFonts.raleway(fontWeight: FontWeight.w700, fontSize: 17)),
-      content: SizedBox(
-        width: 420,
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Info material/fornecedor
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-                color: AppTheme.surfaceVariant,
-                borderRadius: BorderRadius.circular(8)),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return Dialog(
+      child: Container(
+        width: 380,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Row(children: [
-                const Icon(Icons.inventory_2_rounded, size: 14, color: AppTheme.textHint),
-                const SizedBox(width: 6),
-                Text(widget.material.nome,
-                    style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13)),
+                Text('Adicionar à OC',
+                    style: GoogleFonts.raleway(
+                        fontSize: 16, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(context),
+                ),
               ]),
               const SizedBox(height: 4),
-              Row(children: [
-                const Icon(Icons.people_rounded, size: 14, color: AppTheme.textHint),
-                const SizedBox(width: 6),
-                Text(widget.fornecedor['fornecedorNome'] ?? '-',
-                    style: GoogleFonts.nunito(fontSize: 12, color: AppTheme.textSecondary)),
-                const Spacer(),
-                Text(
-                  AppUtils.formatCurrency((widget.fornecedor['custo'] as num?)?.toDouble() ?? 0),
-                  style: GoogleFonts.nunito(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.statusOk),
+              Text(
+                'Fornecedor: ${widget.fornecedor['fornecedorNome'] ?? '-'}  ·  ${AppUtils.formatCurrency((widget.fornecedor['custo'] as num?)?.toDouble() ?? 0)}',
+                style: GoogleFonts.nunito(
+                    fontSize: 12, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                initialValue: _ordemSelecionadaId,
+                decoration: const InputDecoration(
+                    labelText: 'Ordem de Compra', isDense: true),
+                items: widget.ordensEmAndamento
+                    .map<DropdownMenuItem<int>>((o) => DropdownMenuItem(
+                          value: o.id as int,
+                          child: Text('OC ${o.numeroOC}',
+                              style: GoogleFonts.nunito(fontSize: 13)),
+                        ))
+                    .toList(),
+                onChanged: (v) => setState(() => _ordemSelecionadaId = v),
+              ),
+              const SizedBox(height: 20),
+              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancelar'),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: (_ordemSelecionadaId == null || _salvando)
+                      ? null
+                      : () async {
+                          setState(() => _salvando = true);
+                          await widget.onConfirmar(_ordemSelecionadaId!);
+                          setState(() => _salvando = false);
+                        },
+                  child: _salvando
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : const Text('Adicionar'),
                 ),
               ]),
             ]),
-          ),
-          const SizedBox(height: 16),
-
-          // Selecionar OC
-          Text('Ordem de Compra',
-              style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
-          const SizedBox(height: 6),
-          DropdownButtonFormField(
-            initialValue: _ocSelecionada,
-            decoration: const InputDecoration(isDense: true),
-            items: widget.ordensEmAndamento
-                .map((o) => DropdownMenuItem(
-                      value: o,
-                      child: Text('OC ${o.numeroOC}',
-                          style: GoogleFonts.nunito(fontSize: 13)),
-                    ))
-                .toList(),
-            onChanged: (v) => setState(() => _ocSelecionada = v),
-          ),
-
-        ]),
       ),
-      actions: [
-        TextButton(
-          onPressed: _loading ? null : () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: _loading
-              ? null
-              : () async {
-                  setState(() => _loading = true);
-                  await widget.onConfirmar(_ocSelecionada.id as int);
-                  setState(() => _loading = false);
-                },
-          child: _loading
-              ? const SizedBox(
-                  width: 16, height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Text('Adicionar à OC'),
-        ),
-      ],
     );
   }
 }
 
-// ─── Resultado ─────────────────────────────────────────────────────────────
+// ─── Resultado de um material ───────────────────────────────────────────────
 
 enum _OrdenarPor { preco, prazo }
 
 class _ResultadoComparativo extends StatefulWidget {
   final Map<String, dynamic> resultado;
-  final void Function(Map<String, dynamic>) onAdicionarAOC;
+  final void Function(Map<String, dynamic> fornecedor) onAdicionarAOC;
 
-  const _ResultadoComparativo({required this.resultado, required this.onAdicionarAOC});
+  const _ResultadoComparativo({
+    required this.resultado,
+    required this.onAdicionarAOC,
+  });
 
   @override
   State<_ResultadoComparativo> createState() => _ResultadoComparativoState();
@@ -296,137 +359,161 @@ class _ResultadoComparativo extends StatefulWidget {
 class _ResultadoComparativoState extends State<_ResultadoComparativo> {
   _OrdenarPor _ordenarPor = _OrdenarPor.preco;
 
-  List<Map<String, dynamic>> _ordenar(List<Map<String, dynamic>> lista) {
-    final sorted = List<Map<String, dynamic>>.from(lista);
-    if (_ordenarPor == _OrdenarPor.preco) {
-      sorted.sort((a, b) => ((a['custo'] as num?) ?? 0).compareTo((b['custo'] as num?) ?? 0));
-    } else {
-      // Fornecedores sem prazo vão para o final
-      sorted.sort((a, b) {
-        final pA = a['prazoEntrega'] as int?;
-        final pB = b['prazoEntrega'] as int?;
-        if (pA == null && pB == null) return 0;
-        if (pA == null) return 1;
-        if (pB == null) return -1;
-        return pA.compareTo(pB);
-      });
-    }
-    return sorted;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final raw = (widget.resultado['fornecedores'] as List?) ?? [];
-    final fornecedores = _ordenar(raw.cast<Map<String, dynamic>>());
-
-    // Destaques fixos (independente da ordenação)
-    final melhorPreco = raw.cast<Map<String, dynamic>>()
-        .where((f) => f['prazoEntrega'] != null)
-        .toList()
-      ..sort((a, b) => ((a['custo'] as num?) ?? 0).compareTo((b['custo'] as num?) ?? 0));
-    final melhorPrazo = raw.cast<Map<String, dynamic>>()
-        .where((f) => f['prazoEntrega'] != null)
-        .toList()
-      ..sort((a, b) => (a['prazoEntrega'] as int).compareTo(b['prazoEntrega'] as int));
-
-    final destPreco = melhorPreco.isNotEmpty ? melhorPreco.first : null;
-    final destPrazo = melhorPrazo.isNotEmpty ? melhorPrazo.first : null;
-    // Só mostra destaque de prazo se for um fornecedor diferente do melhor preço
-    final mostrarDestPrazo = destPrazo != null &&
-        destPreco != null &&
-        destPrazo['fornecedorId'] != destPreco['fornecedorId'];
+    final mat = widget.resultado['material'] as Map<String, dynamic>?;
+    final matNome = (mat?['nome'] as String?) ?? 'Material';
+    final rawFornecedores =
+        (widget.resultado['fornecedores'] as List<dynamic>?) ?? [];
+    final fornecedores =
+        rawFornecedores.cast<Map<String, dynamic>>().toList();
 
     if (fornecedores.isEmpty) {
-      return const EmptyState(
-        icon: Icons.people_outline_rounded,
-        title: 'Nenhum fornecedor vinculado',
-        message: 'Este material não possui fornecedores com preço cadastrado.',
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppTheme.divider)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(matNome,
+              style: GoogleFonts.raleway(
+                  fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          Text('Nenhum fornecedor vinculado a este material.',
+              style: GoogleFonts.nunito(
+                  fontSize: 13, color: AppTheme.textHint)),
+        ]),
       );
     }
 
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // ── Destaques ──
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Melhor preço
-        if (destPreco != null)
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.statusOk.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.statusOk.withValues(alpha: 0.4)),
-              ),
-              child: Row(children: [
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: AppTheme.statusOk.withValues(alpha: 0.15),
-                      shape: BoxShape.circle),
-                  child: const Icon(Icons.emoji_events_rounded, color: AppTheme.statusOk, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Menor Preço',
-                      style: GoogleFonts.nunito(fontSize: 10, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
-                  Text(destPreco['fornecedorNome'] ?? '-',
-                      style: GoogleFonts.raleway(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.statusOk),
-                      overflow: TextOverflow.ellipsis),
-                ])),
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(AppUtils.formatCurrency((destPreco['custo'] as num?)?.toDouble() ?? 0),
-                      style: GoogleFonts.raleway(fontWeight: FontWeight.w800, fontSize: 18, color: AppTheme.statusOk)),
-                  if (destPreco['prazoEntrega'] != null)
-                    Text(AppUtils.formatPrazo(destPreco['prazoEntrega']),
-                        style: GoogleFonts.nunito(fontSize: 11, color: AppTheme.textHint)),
-                ]),
-              ]),
-            ),
-          ),
-        // Melhor prazo (só se diferente do melhor preço)
-        if (mostrarDestPrazo) ...[
-          const SizedBox(width: 12),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.accent.withValues(alpha: 0.4)),
-              ),
-              child: Row(children: [
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                      color: AppTheme.accent.withValues(alpha: 0.15),
-                      shape: BoxShape.circle),
-                  child: const Icon(Icons.timer_rounded, color: AppTheme.accent, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Menor Prazo',
-                      style: GoogleFonts.nunito(fontSize: 10, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
-                  Text(destPrazo['fornecedorNome'] ?? '-',
-                      style: GoogleFonts.raleway(fontWeight: FontWeight.w800, fontSize: 14, color: AppTheme.accent),
-                      overflow: TextOverflow.ellipsis),
-                ])),
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(AppUtils.formatPrazo(destPrazo['prazoEntrega']),
-                      style: GoogleFonts.raleway(fontWeight: FontWeight.w800, fontSize: 18, color: AppTheme.accent)),
-                  Text(AppUtils.formatCurrency((destPrazo['custo'] as num?)?.toDouble() ?? 0),
-                      style: GoogleFonts.nunito(fontSize: 11, color: AppTheme.textHint)),
-                ]),
-              ]),
-            ),
-          ),
-        ],
-      ]),
-      const SizedBox(height: 20),
+    // Destaque de menor preço e menor prazo
+    final comPreco =
+        fornecedores.where((f) => f['custo'] != null).toList();
+    final comPrazo =
+        fornecedores.where((f) => f['prazoEntrega'] != null).toList();
+    final destPreco = comPreco.isNotEmpty
+        ? (comPreco..sort((a, b) => (a['custo'] as num)
+            .compareTo(b['custo'] as num)))
+            .first
+        : null;
+    final destPrazo = comPrazo.isNotEmpty
+        ? (comPrazo..sort((a, b) => (a['prazoEntrega'] as num)
+            .compareTo(b['prazoEntrega'] as num)))
+            .first
+        : null;
 
-      // ── Ordenação ──
+    final sorted = [...fornecedores];
+    if (_ordenarPor == _OrdenarPor.preco) {
+      sorted.sort((a, b) =>
+          ((a['custo'] as num?) ?? 999999)
+              .compareTo((b['custo'] as num?) ?? 999999));
+    } else {
+      sorted.sort((a, b) =>
+          ((a['prazoEntrega'] as num?) ?? 999999)
+              .compareTo((b['prazoEntrega'] as num?) ?? 999999));
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // Título do material
+      Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(children: [
+          const Icon(Icons.inventory_2_rounded,
+              size: 16, color: AppTheme.primary),
+          const SizedBox(width: 8),
+          Text(matNome,
+              style: GoogleFonts.raleway(
+                  fontSize: 15, fontWeight: FontWeight.w700)),
+          const SizedBox(width: 8),
+          Text('(${fornecedores.length} fornecedor${fornecedores.length != 1 ? 'es' : ''})',
+              style: GoogleFonts.nunito(
+                  fontSize: 12, color: AppTheme.textHint)),
+        ]),
+      ),
+
+      // Cards de destaque
+      if (destPreco != null || destPrazo != null)
+        Row(children: [
+          if (destPreco != null)
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(right: 8, bottom: 12),
+                decoration: BoxDecoration(
+                    color: AppTheme.statusOk.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: AppTheme.statusOk.withValues(alpha: 0.3))),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        const Icon(Icons.star_rounded,
+                            color: AppTheme.statusOk, size: 14),
+                        const SizedBox(width: 4),
+                        Text('Menor Preço',
+                            style: GoogleFonts.nunito(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.statusOk)),
+                      ]),
+                      const SizedBox(height: 4),
+                      Text(destPreco['fornecedorNome'] ?? '-',
+                          style: GoogleFonts.nunito(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text(
+                          AppUtils.formatCurrency(
+                              (destPreco['custo'] as num?)?.toDouble() ?? 0),
+                          style: GoogleFonts.nunito(
+                              fontSize: 11, color: AppTheme.textHint)),
+                    ]),
+              ),
+            ),
+          if (destPrazo != null)
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(left: 0, bottom: 12),
+                decoration: BoxDecoration(
+                    color: AppTheme.accent.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: AppTheme.accent.withValues(alpha: 0.3))),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        const Icon(Icons.timer_rounded,
+                            color: AppTheme.accent, size: 14),
+                        const SizedBox(width: 4),
+                        Text('Menor Prazo',
+                            style: GoogleFonts.nunito(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.accent)),
+                      ]),
+                      const SizedBox(height: 4),
+                      Text(destPrazo['fornecedorNome'] ?? '-',
+                          style: GoogleFonts.nunito(
+                              fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text(
+                          AppUtils.formatCurrency(
+                              (destPrazo['custo'] as num?)?.toDouble() ?? 0),
+                          style: GoogleFonts.nunito(
+                              fontSize: 11, color: AppTheme.textHint)),
+                    ]),
+              ),
+            ),
+        ]),
+
+      // Ordenação
       Row(children: [
         Text('Ordenar por:',
-            style: GoogleFonts.nunito(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600)),
+            style: GoogleFonts.nunito(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w600)),
         const SizedBox(width: 10),
         _SortChip(
           label: 'Menor Preço',
@@ -444,118 +531,187 @@ class _ResultadoComparativoState extends State<_ResultadoComparativo> {
       ]),
       const SizedBox(height: 12),
 
-      // ── Tabela ──
+      // Tabela
       Container(
         decoration: BoxDecoration(
             color: AppTheme.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppTheme.divider)),
         child: Column(children: [
-          // Cabeçalho
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
               color: AppTheme.surfaceVariant,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  BorderRadius.vertical(top: Radius.circular(12)),
             ),
             child: Row(children: [
-              Expanded(flex: 3, child: Text('Fornecedor',
-                  style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary))),
-              Expanded(flex: 2, child: Row(children: [
-                Text('Preço',
-                    style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
-                if (_ordenarPor == _OrdenarPor.preco)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4),
-                    child: Icon(Icons.arrow_upward_rounded, size: 11, color: AppTheme.primary),
-                  ),
-              ])),
-              Expanded(flex: 2, child: Row(children: [
-                Text('Prazo',
-                    style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
-                if (_ordenarPor == _OrdenarPor.prazo)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4),
-                    child: Icon(Icons.arrow_upward_rounded, size: 11, color: AppTheme.primary),
-                  ),
-              ])),
+              Expanded(
+                  flex: 3,
+                  child: Text('Fornecedor',
+                      style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textSecondary))),
+              Expanded(
+                  flex: 2,
+                  child: Row(children: [
+                    Text('Preço',
+                        style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textSecondary)),
+                    if (_ordenarPor == _OrdenarPor.preco)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4),
+                        child: Icon(Icons.arrow_upward_rounded,
+                            size: 11, color: AppTheme.primary),
+                      ),
+                  ])),
+              Expanded(
+                  flex: 2,
+                  child: Row(children: [
+                    Text('Prazo',
+                        style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textSecondary)),
+                    if (_ordenarPor == _OrdenarPor.prazo)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 4),
+                        child: Icon(Icons.arrow_upward_rounded,
+                            size: 11, color: AppTheme.primary),
+                      ),
+                  ])),
               const Expanded(flex: 3, child: SizedBox()),
             ]),
           ),
-
-          // Linhas
-          ...fornecedores.asMap().entries.map((e) {
+          ...sorted.asMap().entries.map((e) {
             final i = e.key;
             final f = e.value;
-            final isMelhorPreco = destPreco != null && f['fornecedorId'] == destPreco['fornecedorId'];
-            final isMelhorPrazo = destPrazo != null && f['fornecedorId'] == destPrazo['fornecedorId'];
+            final isMelhorPreco = destPreco != null &&
+                f['fornecedorId'] == destPreco['fornecedorId'];
+            final isMelhorPrazo = destPrazo != null &&
+                f['fornecedorId'] == destPrazo['fornecedorId'];
             return Column(children: [
-              if (i != 0) const Divider(height: 1, color: AppTheme.divider),
+              if (i != 0)
+                const Divider(height: 1, color: AppTheme.divider),
               Container(
                 color: isMelhorPreco
                     ? AppTheme.statusOk.withValues(alpha: 0.04)
                     : isMelhorPrazo
                         ? AppTheme.accent.withValues(alpha: 0.04)
                         : null,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 10),
                 child: Row(children: [
-                  Expanded(flex: 3, child: Row(children: [
-                    if (isMelhorPreco)
-                      const Icon(Icons.star_rounded, color: AppTheme.statusOk, size: 14)
-                    else if (isMelhorPrazo)
-                      const Icon(Icons.timer_rounded, color: AppTheme.accent, size: 14),
-                    if (isMelhorPreco || isMelhorPrazo) const SizedBox(width: 4),
-                    Flexible(child: Text(f['fornecedorNome'] ?? '-',
-                        style: GoogleFonts.nunito(
-                            fontWeight: (isMelhorPreco || isMelhorPrazo) ? FontWeight.w700 : FontWeight.w500,
-                            fontSize: 13))),
-                  ])),
-                  Expanded(flex: 2, child: Text(
-                      AppUtils.formatCurrency((f['custo'] as num?)?.toDouble() ?? 0),
-                      style: GoogleFonts.nunito(
-                          fontWeight: FontWeight.w700, fontSize: 13,
-                          color: isMelhorPreco ? AppTheme.statusOk : AppTheme.textPrimary))),
-                  Expanded(flex: 2, child: Text(
-                      AppUtils.formatPrazo(f['prazoEntrega']),
-                      style: GoogleFonts.nunito(fontSize: 13,
-                          color: isMelhorPrazo ? AppTheme.accent : AppTheme.textSecondary,
-                          fontWeight: isMelhorPrazo ? FontWeight.w700 : FontWeight.w400))),
-                  Expanded(flex: 3, child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (isMelhorPreco)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: AppTheme.statusOk, borderRadius: BorderRadius.circular(10)),
-                          child: Text('Menor Preço',
-                              style: GoogleFonts.nunito(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
-                        )
-                      else if (isMelhorPrazo)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(color: AppTheme.accent, borderRadius: BorderRadius.circular(10)),
-                          child: Text('Menor Prazo',
-                              style: GoogleFonts.nunito(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700)),
-                        ),
-                      const SizedBox(width: 8),
-                      Tooltip(
-                        message: 'Adicionar à uma OC em andamento',
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.add_shopping_cart_rounded, size: 13),
-                          label: const Text('+ OC'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.primary,
-                            side: BorderSide(color: AppTheme.primary.withValues(alpha: 0.5)),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            textStyle: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700),
-                            minimumSize: Size.zero,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => widget.onAdicionarAOC(f),
-                        ),
-                      ),
-                    ],
-                  )),
+                  Expanded(
+                      flex: 3,
+                      child: Row(children: [
+                        if (isMelhorPreco)
+                          const Icon(Icons.star_rounded,
+                              color: AppTheme.statusOk, size: 14)
+                        else if (isMelhorPrazo)
+                          const Icon(Icons.timer_rounded,
+                              color: AppTheme.accent, size: 14),
+                        if (isMelhorPreco || isMelhorPrazo)
+                          const SizedBox(width: 4),
+                        Flexible(
+                            child: Text(
+                                f['fornecedorNome'] ?? '-',
+                                style: GoogleFonts.nunito(
+                                    fontWeight:
+                                        (isMelhorPreco || isMelhorPrazo)
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                    fontSize: 13))),
+                      ])),
+                  Expanded(
+                      flex: 2,
+                      child: Text(
+                          AppUtils.formatCurrency(
+                              (f['custo'] as num?)?.toDouble() ?? 0),
+                          style: GoogleFonts.nunito(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              color: isMelhorPreco
+                                  ? AppTheme.statusOk
+                                  : AppTheme.textPrimary))),
+                  Expanded(
+                      flex: 2,
+                      child: Text(
+                          AppUtils.formatPrazo(f['prazoEntrega']),
+                          style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              color: isMelhorPrazo
+                                  ? AppTheme.accent
+                                  : AppTheme.textSecondary,
+                              fontWeight: isMelhorPrazo
+                                  ? FontWeight.w700
+                                  : FontWeight.w400))),
+                  Expanded(
+                      flex: 3,
+                      child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (isMelhorPreco)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                    color: AppTheme.statusOk,
+                                    borderRadius:
+                                        BorderRadius.circular(10)),
+                                child: Text('Menor Preço',
+                                    style: GoogleFonts.nunito(
+                                        fontSize: 10,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700)),
+                              )
+                            else if (isMelhorPrazo)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                    color: AppTheme.accent,
+                                    borderRadius:
+                                        BorderRadius.circular(10)),
+                                child: Text('Menor Prazo',
+                                    style: GoogleFonts.nunito(
+                                        fontSize: 10,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700)),
+                              ),
+                            const SizedBox(width: 8),
+                            Tooltip(
+                              message:
+                                  'Adicionar à uma OC em andamento',
+                              child: OutlinedButton.icon(
+                                icon: const Icon(
+                                    Icons.add_shopping_cart_rounded,
+                                    size: 13),
+                                label: const Text('+ OC'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppTheme.primary,
+                                  side: BorderSide(
+                                      color: AppTheme.primary
+                                          .withValues(alpha: 0.5)),
+                                  padding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 6),
+                                  textStyle: GoogleFonts.nunito(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () =>
+                                    widget.onAdicionarAOC(f),
+                              ),
+                            ),
+                          ])),
                 ]),
               ),
             ]);
@@ -566,7 +722,7 @@ class _ResultadoComparativoState extends State<_ResultadoComparativo> {
   }
 }
 
-// ─── Sort Chip ─────────────────────────────────────────────────────────────
+// ─── Sort Chip ──────────────────────────────────────────────────────────────
 
 class _SortChip extends StatelessWidget {
   final String label;
@@ -574,7 +730,11 @@ class _SortChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _SortChip({required this.label, required this.icon, required this.selected, required this.onTap});
+  const _SortChip(
+      {required this.label,
+      required this.icon,
+      required this.selected,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -582,20 +742,26 @@ class _SortChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppTheme.primary : AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? AppTheme.primary : AppTheme.divider),
+          border: Border.all(
+              color: selected ? AppTheme.primary : AppTheme.divider),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 13, color: selected ? Colors.white : AppTheme.textSecondary),
+          Icon(icon,
+              size: 13,
+              color: selected ? Colors.white : AppTheme.textSecondary),
           const SizedBox(width: 5),
           Text(label,
               style: GoogleFonts.nunito(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
-                  color: selected ? Colors.white : AppTheme.textSecondary)),
+                  color: selected
+                      ? Colors.white
+                      : AppTheme.textSecondary)),
         ]),
       ),
     );

@@ -1,8 +1,8 @@
-# Install script for directory: C:/Visual Premium/Visual-Premium-Software/frontend/windows/flutter/ephemeral/.plugin_symlinks/jni/windows
+# Install script for directory: C:/visualPremiumSoftware/Visual-Premium-Software/frontend/windows/flutter/ephemeral/.plugin_symlinks/jni/windows
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "$<TARGET_FILE_DIR:visual_premium_software>")
+  set(CMAKE_INSTALL_PREFIX "$<TARGET_FILE_DIR:VisualPremium>")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -34,12 +34,12 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/shared/cmake_install.cmake")
+  include("C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/shared/cmake_install.cmake")
 endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
 if(CMAKE_INSTALL_LOCAL_ONLY)
-  file(WRITE "C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/install_local_manifest.txt"
+  file(WRITE "C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/plugins/jni/install_local_manifest.txt"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")
 endif()

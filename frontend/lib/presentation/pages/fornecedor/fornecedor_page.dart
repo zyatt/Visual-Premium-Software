@@ -167,17 +167,19 @@ class _FornecedorCard extends StatelessWidget {
             ]),
           ]),
         ),
-        if (f.materiais.isNotEmpty) ...[
+        if (f.materiais.where((fm) => fm.material?.status != 'INATIVO').isNotEmpty) ...[
           const Divider(height: 1, color: AppTheme.divider),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Materiais vinculados (${f.materiais.length})',
+              Text('Materiais vinculados (${f.materiais.where((fm) => fm.material?.status != 'INATIVO').length})',
                   style: GoogleFonts.nunito(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary)),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8, runSpacing: 6,
-                children: f.materiais.map((fm) => Container(
+                children: f.materiais
+                    .where((fm) => fm.material?.status != 'INATIVO')
+                    .map((fm) => Container(
                   padding: const EdgeInsets.fromLTRB(10, 5, 6, 5),
                   decoration: BoxDecoration(color: AppTheme.surfaceVariant, borderRadius: BorderRadius.circular(20)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [

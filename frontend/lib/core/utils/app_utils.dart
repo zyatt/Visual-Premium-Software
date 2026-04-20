@@ -25,6 +25,7 @@ class AppUtils {
       case 'OK': return 'Ok';
       case 'BAIXO': return 'Baixo';
       case 'CRITICO': return 'Crítico';
+      case 'INATIVO': return 'Inativo';
       default: return status;
     }
   }

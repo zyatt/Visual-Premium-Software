@@ -19,7 +19,7 @@ class _VincularMaterialDialogState extends State<VincularMaterialDialog> {
   final _formKey = GlobalKey<FormState>();
   final _custo = TextEditingController();
   final _prazo = TextEditingController();
-  MaterialModel? _materialSelecionado;  
+  MaterialModel? _materialSelecionado;
   bool _loading = false;
 
   @override
@@ -46,7 +46,7 @@ class _VincularMaterialDialogState extends State<VincularMaterialDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final materiais = context.watch<MaterialProvider>().materiais;
+    final materiais = context.watch<MaterialProvider>().materiaisAtivos; // <-- ALTERADO
     final jaVinculados = widget.fornecedor.materiais.map((m) => m.materialId).toSet();
     final disponiveis = materiais
         .whereType<MaterialModel>()
@@ -72,13 +72,13 @@ class _VincularMaterialDialogState extends State<VincularMaterialDialog> {
               initialValue: _materialSelecionado,
               decoration: const InputDecoration(labelText: 'Selecionar Material *'),
               items: disponiveis
-              .map<DropdownMenuItem<MaterialModel>>(
-                (m) => DropdownMenuItem(
-                  value: m,
-                  child: Text(m.nome),
-                ),
-              )
-              .toList(),
+                  .map<DropdownMenuItem<MaterialModel>>(
+                    (m) => DropdownMenuItem(
+                      value: m,
+                      child: Text(m.nome),
+                    ),
+                  )
+                  .toList(),
               onChanged: (MaterialModel? v) {
                 setState(() => _materialSelecionado = v);
               },

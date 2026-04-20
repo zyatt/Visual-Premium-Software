@@ -1,11 +1,13 @@
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/icudtl.dat
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/flutter_windows.dll
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/dartjni.dll
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/AssetManifest.bin
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/FontManifest.json
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/fonts/MaterialIcons-Regular.otf
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/kernel_blob.bin
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/NativeAssetsManifest.json
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/NOTICES.Z
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/shaders/ink_sparkle.frag
-C:/Visual Premium/Visual-Premium-Software/frontend/build/windows/x64/runner/Debug/data/flutter_assets/shaders/stretch_effect.frag
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/icudtl.dat
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/flutter_windows.dll
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/dartjni.dll
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/.env
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/AssetManifest.bin
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/assets/images/logo.png
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/FontManifest.json
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/fonts/MaterialIcons-Regular.otf
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/NativeAssetsManifest.json
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/NOTICES.Z
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/shaders/ink_sparkle.frag
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/flutter_assets/shaders/stretch_effect.frag
+C:/visualPremiumSoftware/Visual-Premium-Software/frontend/build/windows/x64/runner/Release/data/app.so

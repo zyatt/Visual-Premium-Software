@@ -36,7 +36,7 @@ class _OrdemCompraPageState extends State<OrdemCompraPage> with SingleTickerProv
   void dispose() { _tabs.dispose(); super.dispose(); }
 
   List<OrdemCompra> _filterByStatus(List<OrdemCompra> all, String status) =>
-      all.where((o) => o.status == status && (o.numeroOC.toLowerCase().contains(_search.toLowerCase()) ||
+      all.where((o) => o.status == status && (o.numeroOC.toString().toLowerCase().contains(_search.toLowerCase()) ||
           (o.fornecedor?.nome.toLowerCase().contains(_search.toLowerCase()) ?? false))).toList();
 
   @override

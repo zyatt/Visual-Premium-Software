@@ -28,7 +28,7 @@ class _EstoquePageState extends State<EstoquePage> {
     });
   }
 
-  List<MaterialModel> _filtered(List<MaterialModel> all){
+  List<MaterialModel> _filtered(List<MaterialModel> all) {
     return all.where((m) {
       final matchSearch = m.nome.toLowerCase().contains(_search.toLowerCase());
       final matchStatus = _filterStatus == 'TODOS' || m.status == _filterStatus;
@@ -98,6 +98,7 @@ class _EstoquePageState extends State<EstoquePage> {
                       DropdownMenuItem(value: 'OK', child: Text('Ok')),
                       DropdownMenuItem(value: 'BAIXO', child: Text('Baixo')),
                       DropdownMenuItem(value: 'CRITICO', child: Text('Crítico')),
+                      DropdownMenuItem(value: 'INATIVO', child: Text('Inativo')),
                     ],
                     onChanged: (v) => setState(() => _filterStatus = v!),
                   ),
@@ -124,7 +125,8 @@ class _EstoquePageState extends State<EstoquePage> {
                         : _MaterialTable(
                             materiais: filtered,
                             onEdit: (m) => _showMaterialForm(context, material: m),
-                            onDelete: (m) => _delete(context, m),
+                            onDesativar: (m) => _desativar(context, m),
+                            onReativar: (m) => _reativar(context, m),
                             onSaida: (m) => _showSaida(context, m),
                             onHistorico: (m) => _showHistorico(context, m),
                           ),
@@ -149,15 +151,42 @@ class _EstoquePageState extends State<EstoquePage> {
     showDialog(context: context, builder: (_) => HistoricoMaterialDialog(material: m));
   }
 
-  Future<void> _delete(BuildContext context, MaterialModel m) async {
-    final confirm = await showConfirmDialog(context,
-        title: 'Excluir Material',
-        message: 'Deseja excluir "${m.nome}"? Esta ação não pode ser desfeita.');
+  Future<void> _desativar(BuildContext context, MaterialModel m) async {
+    final confirm = await showConfirmDialog(
+      context,
+      title: 'Desativar Material',
+      message:
+          'Deseja desativar "${m.nome}"? O material permanecerá no estoque como Inativo e poderá ser reativado depois.',
+      confirmLabel: 'Desativar',
+    );
     if (confirm == true && context.mounted) {
-      final ok = await context.read<MaterialProvider>().deletar(m.id);
+      // Chama o provider para atualizar apenas o status para INATIVO
+      final ok = await context.read<MaterialProvider>().desativar(m.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(ok ? 'Material excluído.' : context.read<MaterialProvider>().error ?? 'Erro'),
+          content: Text(ok
+              ? 'Material desativado.'
+              : context.read<MaterialProvider>().error ?? 'Erro'),
+        ));
+      }
+    }
+  }
+
+  Future<void> _reativar(BuildContext context, MaterialModel m) async {
+    final confirm = await showConfirmDialog(
+      context,
+      title: 'Reativar Material',
+      message: 'Deseja reativar "${m.nome}"?',
+      confirmLabel: 'Reativar',
+      confirmColor: AppTheme.statusOk,
+    );
+    if (confirm == true && context.mounted) {
+      final ok = await context.read<MaterialProvider>().reativar(m.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'Material reativado.'
+              : context.read<MaterialProvider>().error ?? 'Erro'),
         ));
       }
     }
@@ -179,10 +208,14 @@ class _MiniStat extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 6),
         Text('$label: $value',
-            style: GoogleFonts.nunito(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+            style: GoogleFonts.nunito(
+                fontSize: 12, fontWeight: FontWeight.w700, color: color)),
       ]),
     );
   }
@@ -191,14 +224,16 @@ class _MiniStat extends StatelessWidget {
 class _MaterialTable extends StatelessWidget {
   final List<MaterialModel> materiais;
   final void Function(MaterialModel) onEdit;
-  final void Function(MaterialModel) onDelete;
+  final void Function(MaterialModel) onDesativar;
+  final void Function(MaterialModel) onReativar;
   final void Function(MaterialModel) onSaida;
   final void Function(MaterialModel) onHistorico;
 
   const _MaterialTable({
     required this.materiais,
     required this.onEdit,
-    required this.onDelete,
+    required this.onDesativar,
+    required this.onReativar,
     required this.onSaida,
     required this.onHistorico,
   });
@@ -226,6 +261,7 @@ class _MaterialTable extends StatelessWidget {
                 children: [
                   _Th('Material', flex: 3),
                   _Th('Qtd. Atual', flex: 2),
+                  _Th('Unidade', flex: 2),
                   _Th('Est. Mínimo', flex: 2),
                   _Th('Saldo', flex: 2),
                   _Th('Últ. Valor Pago', flex: 2),
@@ -238,38 +274,87 @@ class _MaterialTable extends StatelessWidget {
               final i = e.key;
               final m = e.value;
               final saldo = m.quantidadeAtual - m.estoqueInicial;
+              final isInativo = m.status == 'INATIVO';
               return Column(
                 children: [
                   if (i != 0) const Divider(height: 1, color: AppTheme.divider),
                   Container(
-                    color: i.isOdd ? AppTheme.surfaceVariant.withValues(alpha: 0.4) : null,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    color: isInativo
+                        ? AppTheme.divider.withValues(alpha: 0.3)
+                        : i.isOdd
+                            ? AppTheme.surfaceVariant.withValues(alpha: 0.4)
+                            : null,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     child: Row(
                       children: [
                         Expanded(
                           flex: 3,
-                          child: Text(m.nome,
-                              style: GoogleFonts.nunito(
-                                  fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
+                          child: Row(
+                            children: [
+                              if (isInativo)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 6),
+                                  child: Icon(Icons.block_rounded,
+                                      size: 13, color: AppTheme.textHint),
+                                ),
+                              Flexible(
+                                child: Text(m.nome,
+                                    style: GoogleFonts.nunito(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 13,
+                                        color: isInativo
+                                            ? AppTheme.textHint
+                                            : AppTheme.textPrimary)),
+                              ),
+                            ],
+                          ),
                         ),
                         Expanded(
                           flex: 2,
                           child: Text(AppUtils.formatNumber(m.quantidadeAtual),
-                              style: GoogleFonts.nunito(fontSize: 13)),
+                              style: GoogleFonts.nunito(
+                                  fontSize: 13,
+                                  color: isInativo
+                                      ? AppTheme.textHint
+                                      : AppTheme.textPrimary)),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            m.unidade?.isNotEmpty == true ? m.unidade! : '—',
+                            style: GoogleFonts.nunito(
+                                fontSize: 13,
+                                color: m.unidade?.isNotEmpty == true
+                                    ? (isInativo
+                                        ? AppTheme.textHint
+                                        : AppTheme.textPrimary)
+                                    : AppTheme.textHint),
+                          ),
                         ),
                         Expanded(
                           flex: 2,
                           child: Text(AppUtils.formatNumber(m.estoqueMinimo),
-                              style: GoogleFonts.nunito(fontSize: 13)),
+                              style: GoogleFonts.nunito(
+                                  fontSize: 13,
+                                  color: isInativo
+                                      ? AppTheme.textHint
+                                      : AppTheme.textPrimary)),
                         ),
                         Expanded(
                           flex: 2,
                           child: Row(
                             children: [
                               Icon(
-                                saldo >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                                saldo >= 0
+                                    ? Icons.trending_up_rounded
+                                    : Icons.trending_down_rounded,
                                 size: 14,
-                                color: saldo >= 0 ? AppTheme.statusOk : AppTheme.statusCritico,
+                                color: isInativo
+                                    ? AppTheme.textHint
+                                    : saldo >= 0
+                                        ? AppTheme.statusOk
+                                        : AppTheme.statusCritico,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -277,7 +362,11 @@ class _MaterialTable extends StatelessWidget {
                                 style: GoogleFonts.nunito(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: saldo >= 0 ? AppTheme.statusOk : AppTheme.statusCritico,
+                                  color: isInativo
+                                      ? AppTheme.textHint
+                                      : saldo >= 0
+                                          ? AppTheme.statusOk
+                                          : AppTheme.statusCritico,
                                 ),
                               ),
                             ],
@@ -286,7 +375,11 @@ class _MaterialTable extends StatelessWidget {
                         Expanded(
                           flex: 2,
                           child: Text(AppUtils.formatCurrency(m.ultimoValorPago),
-                              style: GoogleFonts.nunito(fontSize: 13)),
+                              style: GoogleFonts.nunito(
+                                  fontSize: 13,
+                                  color: isInativo
+                                      ? AppTheme.textHint
+                                      : AppTheme.textPrimary)),
                         ),
                         Expanded(flex: 2, child: StatusBadge(status: m.status)),
                         Expanded(
@@ -294,10 +387,29 @@ class _MaterialTable extends StatelessWidget {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              _ActionBtn(Icons.output_rounded, 'Saída', AppTheme.statusBaixo, () => onSaida(m)),
-                              _ActionBtn(Icons.edit_rounded, 'Editar', AppTheme.primary, () => onEdit(m)),
-                              _ActionBtn(Icons.history_rounded, 'Histórico', AppTheme.textSecondary, () => onHistorico(m)),
-                              _ActionBtn(Icons.delete_rounded, 'Excluir', AppTheme.error, () => onDelete(m)),
+                              if (!isInativo) ...[
+                                _ActionBtn(Icons.output_rounded, 'Saída',
+                                    AppTheme.statusBaixo, () => onSaida(m)),
+                                _ActionBtn(Icons.edit_rounded, 'Editar',
+                                    AppTheme.primary, () => onEdit(m)),
+                                _ActionBtn(Icons.history_rounded, 'Histórico',
+                                    AppTheme.textSecondary, () => onHistorico(m)),
+                                _ActionBtn(
+                                  Icons.block_rounded,
+                                  'Desativar',
+                                  AppTheme.error,
+                                  () => onDesativar(m),
+                                ),
+                              ] else ...[
+                                _ActionBtn(Icons.history_rounded, 'Histórico',
+                                    AppTheme.textSecondary, () => onHistorico(m)),
+                                _ActionBtn(
+                                  Icons.check_circle_outline_rounded,
+                                  'Reativar',
+                                  AppTheme.statusOk,
+                                  () => onReativar(m),
+                                ),
+                              ],
                             ],
                           ),
                         ),
@@ -325,7 +437,10 @@ class _Th extends StatelessWidget {
         child: Text(text,
             textAlign: align,
             style: GoogleFonts.nunito(
-                fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textSecondary, letterSpacing: 0.3)),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textSecondary,
+                letterSpacing: 0.3)),
       );
 }
 

@@ -2,7 +2,7 @@
 ; 📦 VISUAL PREMIUM - INSTALADOR
 ; ====================================
 #define MyAppName "Visual Premium Estoque e Compras"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Matheus Vinícius" 
 #define MyAppExeName "visualpremium.exe"
 #define MyAppId "{{7B8E0F9A-2C4D-4B1E-9A0A-3C8E2F5A1234}"

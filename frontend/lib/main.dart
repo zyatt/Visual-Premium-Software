@@ -7,6 +7,7 @@ import 'core/router/app_router.dart';
 import 'presentation/providers/material_provider.dart';
 import 'presentation/providers/fornecedor_provider.dart';
 import 'presentation/providers/ordem_compra_provider.dart';
+import 'presentation/providers/historico_material_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,7 @@ class EstoqueApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MaterialProvider()),
         ChangeNotifierProvider(create: (_) => FornecedorProvider()),
         ChangeNotifierProvider(create: (_) => OrdemCompraProvider()),
+        ChangeNotifierProvider(create: (_) => HistoricoMaterialProvider()),
       ],
       child: MaterialApp.router(
         title: 'EstoqueFlow',

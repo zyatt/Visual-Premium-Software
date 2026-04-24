@@ -7,6 +7,56 @@ import '../../widgets/common/common_widgets.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/material_model.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: aceita vírgula OU ponto como separador decimal.
+// "1"      → 1.0
+// "1,5"    → 1.5
+// "1.500,75" → 1500.75  (formato BR com milhar)
+// "1,500.75" → 1500.75  (formato EN com milhar)
+// ─────────────────────────────────────────────────────────────────────────────
+double _parseDecimal(String raw) {
+  final s = raw.trim();
+  if (s.isEmpty) return 0.0;
+
+  // Caso simples: já é um double válido (ex: "1", "1.5")
+  final direct = double.tryParse(s);
+  if (direct != null) return direct;
+
+  // Detecta formato: se há ponto E vírgula, o último é o separador decimal
+  final hasDot   = s.contains('.');
+  final hasComma = s.contains(',');
+
+  String normalized;
+
+  if (hasDot && hasComma) {
+    // Ex: "1.500,75" (BR) ou "1,500.75" (EN)
+    final lastDot   = s.lastIndexOf('.');
+    final lastComma = s.lastIndexOf(',');
+    if (lastComma > lastDot) {
+      // BR: vírgula é o decimal → remove pontos de milhar, troca vírgula por ponto
+      normalized = s.replaceAll('.', '').replaceAll(',', '.');
+    } else {
+      // EN: ponto é o decimal → remove vírgulas de milhar
+      normalized = s.replaceAll(',', '');
+    }
+  } else if (hasComma) {
+    // Só vírgula: pode ser separador decimal (BR) ou milhar (EN raro)
+    final parts = s.split(',');
+    if (parts.length == 2 && parts[1].length <= 2) {
+      // "1,5" ou "1,75" → decimal
+      normalized = s.replaceAll(',', '.');
+    } else {
+      // "1,500" → milhar, remove vírgula
+      normalized = s.replaceAll(',', '');
+    }
+  } else {
+    // Só ponto com parse falhou (ex: "1.500" como milhar BR)
+    normalized = s.replaceAll('.', '');
+  }
+
+  return double.tryParse(normalized) ?? 0.0;
+}
+
 class MaterialFormDialog extends StatefulWidget {
   final MaterialModel? material;
   const MaterialFormDialog({super.key, this.material});
@@ -62,17 +112,14 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
   }
 
   void _onNomeChanged(String value) {
-    // Limpa erro ao digitar
     if (_nomeError != null) setState(() => _nomeError = null);
 
     _debounce?.cancel();
     final trimmed = value.trim();
 
     if (trimmed.isEmpty) return;
-    // Na edição, não verifica se o nome não mudou
     if (_isEdit && trimmed.toLowerCase() == widget.material!.nome.toLowerCase()) return;
 
-    // Debounce de 600ms após parar de digitar
     _debounce = Timer(const Duration(milliseconds: 600), () => _verificarNome(trimmed));
   }
 
@@ -80,7 +127,6 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
     setState(() => _checkingNome = true);
     final prov = context.read<MaterialProvider>();
 
-    // Verificação local na lista já carregada no provider — sem chamada extra à API
     final existe = prov.materiais.any((m) =>
         m.nome.toLowerCase() == nome.toLowerCase() &&
         (!_isEdit || m.id != widget.material!.id));
@@ -94,6 +140,20 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
     }
   }
 
+  /// Validator reutilizável para campos numéricos: permite vazio (vira 0)
+  /// mas rejeita texto que não seja número.
+  String? _validarNumero(String? v) {
+    if (v == null || v.trim().isEmpty) return null; // vazio → 0, tudo bem
+    final parsed = _parseDecimal(v.trim());
+    // Se parseDecimal retornou 0 mas o campo não era "0" ou vazio, é inválido
+    if (parsed == 0.0 && v.trim() != '0' && v.trim() != '0,0' && v.trim() != '0.0') {
+      // Checa se realmente não é zero digitado
+      final semZeros = v.trim().replaceAll(RegExp(r'[0.,]'), '');
+      if (semZeros.isNotEmpty) return 'Valor inválido';
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     if (_nomeError != null) return;
     if (!_formKey.currentState!.validate()) return;
@@ -102,11 +162,11 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
     final dados = {
       'nome': _nome.text.trim(),
       'unidade': _unidade.text.trim().isEmpty ? null : _unidade.text.trim(),
-      'quantidadeAtual': double.tryParse(_qtdAtual.text) ?? 0,
-      'estoqueInicial': double.tryParse(_estoqueInicial.text) ?? 0,
-      'estoqueMinimo': double.tryParse(_estoqueMinimo.text) ?? 0,
-      'custo': double.tryParse(_custo.text) ?? 0,
-      'ultimoValorPago': double.tryParse(_ultimoValorPago.text) ?? 0,
+      'quantidadeAtual': _parseDecimal(_qtdAtual.text),
+      'estoqueInicial':  _parseDecimal(_estoqueInicial.text),
+      'estoqueMinimo':   _parseDecimal(_estoqueMinimo.text),
+      'custo':           _parseDecimal(_custo.text),
+      'ultimoValorPago': _parseDecimal(_ultimoValorPago.text),
     };
 
     final prov = context.read<MaterialProvider>();
@@ -122,7 +182,6 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
           SnackBar(content: Text(_isEdit ? 'Material atualizado!' : 'Material criado!')),
         );
       } else {
-        // Caso o backend rejeite (ex: race condition), exibe o erro no próprio campo
         setState(() => _nomeError = prov.error ?? 'Erro ao salvar');
         _formKey.currentState?.validate();
         prov.clearError();
@@ -195,30 +254,35 @@ class _MaterialFormDialogState extends State<MaterialFormDialog> {
               Row(children: [
                 Expanded(child: AppTextField(
                   label: 'Quantidade Atual', controller: _qtdAtual,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: _validarNumero,
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: AppTextField(
                   label: 'Estoque Inicial', controller: _estoqueInicial,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: _validarNumero,
                 )),
               ]),
               const SizedBox(height: 14),
               Row(children: [
                 Expanded(child: AppTextField(
                   label: 'Estoque Mínimo', controller: _estoqueMinimo,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: _validarNumero,
                 )),
                 const SizedBox(width: 12),
                 Expanded(child: AppTextField(
                   label: 'Custo (R\$)', controller: _custo,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: _validarNumero,
                 )),
               ]),
               const SizedBox(height: 14),
               AppTextField(
                 label: 'Último Valor Pago (R\$)', controller: _ultimoValorPago,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: _validarNumero,
               ),
               const SizedBox(height: 24),
               Row(

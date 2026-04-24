@@ -8,6 +8,7 @@ const fornecedorRoutes = require('./routes/fornecedor.routes');
 const ordemCompraRoutes = require('./routes/ordemCompra.routes');
 const estoqueRoutes = require('./routes/estoque.routes');
 const comparativoRoutes = require('./routes/comparativo.routes');
+const historicoMaterialRoutes = require('./routes/historicoMaterial.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +22,7 @@ app.use('/api/fornecedores', fornecedorRoutes);
 app.use('/api/ordens-compra', ordemCompraRoutes);
 app.use('/api/estoque', estoqueRoutes);
 app.use('/api/comparativo', comparativoRoutes);
+app.use('/api/historico-material', historicoMaterialRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

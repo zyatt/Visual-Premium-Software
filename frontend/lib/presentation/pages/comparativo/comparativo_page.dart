@@ -20,6 +20,10 @@ class _ComparativoPageState extends State<ComparativoPage> {
   /// IDs dos materiais selecionados para comparação múltipla
   final Set<int> _selecionados = {};
 
+  /// Busca de materiais
+  final TextEditingController _buscaCtrl = TextEditingController();
+  String _buscarTexto = '';
+
   /// Resultados indexados por materialId
   List<Map<String, dynamic>> _resultados = [];
   bool _loading = false;
@@ -32,6 +36,12 @@ class _ComparativoPageState extends State<ComparativoPage> {
       context.read<MaterialProvider>().carregarMateriais();
       context.read<OrdemCompraProvider>().carregarOrdens();
     });
+  }
+
+  @override
+  void dispose() {
+    _buscaCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _buscar() async {
@@ -127,82 +137,23 @@ class _ComparativoPageState extends State<ComparativoPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Painel de seleção múltipla ──
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                        color: AppTheme.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.divider)),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(children: [
-                            Text('Selecionar Materiais',
-                                style: GoogleFonts.raleway(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700)),
-                            const Spacer(),
-                            if (_selecionados.isNotEmpty)
-                              TextButton(
-                                onPressed: () =>
-                                    setState(() => _selecionados.clear()),
-                                child: const Text('Limpar seleção'),
-                              ),
-                            const SizedBox(width: 8),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.compare_arrows_rounded,
-                                  size: 16),
-                              label: Text(_selecionados.isEmpty
-                                  ? 'Selecione ao menos 1'
-                                  : 'Comparar (${_selecionados.length})'),
-                              onPressed: _selecionados.isEmpty || _loading
-                                  ? null
-                                  : _buscar,
-                            ),
-                          ]),
-                          const SizedBox(height: 12),
-                          if (materiais.isEmpty)
-                            Text('Nenhum material ativo disponível.',
-                                style: GoogleFonts.nunito(
-                                    fontSize: 13,
-                                    color: AppTheme.textHint))
-                          else
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: materiais.map((m) {
-                                final sel = _selecionados.contains(m.id);
-                                return FilterChip(
-                                  label: Text(m.nome,
-                                      style: GoogleFonts.nunito(
-                                          fontSize: 12,
-                                          fontWeight: sel
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                          color: sel
-                                              ? Colors.white
-                                              : AppTheme.textPrimary)),
-                                  selected: sel,
-                                  onSelected: (_) => setState(() {
-                                    if (sel) {
-                                      _selecionados.remove(m.id);
-                                    } else {
-                                      _selecionados.add(m.id);
-                                    }
-                                  }),
-                                  selectedColor: AppTheme.primary,
-                                  checkmarkColor: Colors.white,
-                                  backgroundColor: AppTheme.surfaceVariant,
-                                  side: BorderSide(
-                                    color: sel
-                                        ? AppTheme.primary
-                                        : AppTheme.divider,
-                                  ),
-                                  showCheckmark: true,
-                                );
-                              }).toList(),
-                            ),
-                        ]),
+                  _MaterialSelectorPanel(
+                    materiais: materiais,
+                    selecionados: _selecionados,
+                    loading: _loading,
+                    buscaCtrl: _buscaCtrl,
+                    buscarTexto: _buscarTexto,
+                    onBuscaChanged: (v) =>
+                        setState(() => _buscarTexto = v),
+                    onToggle: (id) => setState(() {
+                      if (_selecionados.contains(id)) {
+                        _selecionados.remove(id);
+                      } else {
+                        _selecionados.add(id);
+                      }
+                    }),
+                    onLimpar: () => setState(() => _selecionados.clear()),
+                    onComparar: _buscar,
                   ),
                   const SizedBox(height: 24),
 
@@ -233,6 +184,254 @@ class _ComparativoPageState extends State<ComparativoPage> {
                 ]),
           ),
         ),
+      ]),
+    );
+  }
+}
+
+// ─── Material Selector Panel ─────────────────────────────────────────────────
+
+class _MaterialSelectorPanel extends StatelessWidget {
+  final List materiais;
+  final Set<int> selecionados;
+  final bool loading;
+  final TextEditingController buscaCtrl;
+  final String buscarTexto;
+  final ValueChanged<String> onBuscaChanged;
+  final ValueChanged<int> onToggle;
+  final VoidCallback onLimpar;
+  final VoidCallback onComparar;
+
+  const _MaterialSelectorPanel({
+    required this.materiais,
+    required this.selecionados,
+    required this.loading,
+    required this.buscaCtrl,
+    required this.buscarTexto,
+    required this.onBuscaChanged,
+    required this.onToggle,
+    required this.onLimpar,
+    required this.onComparar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final filtrados = buscarTexto.isEmpty
+        ? materiais
+        : materiais
+            .where((m) => (m.nome as String)
+                .toLowerCase()
+                .contains(buscarTexto.toLowerCase()))
+            .toList();
+
+    final temSelecao = selecionados.isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.divider),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Header ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 16, 12),
+          child: Row(children: [
+            const Icon(Icons.category_rounded,
+                size: 16, color: AppTheme.primary),
+            const SizedBox(width: 8),
+            Text("Selecionar Materiais",
+                style: GoogleFonts.raleway(
+                    fontSize: 14, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            if (temSelecao)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                    "${selecionados.length} selecionado${selecionados.length != 1 ? "s" : ""}",
+                    style: GoogleFonts.nunito(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
+            const Spacer(),
+            if (temSelecao)
+              TextButton.icon(
+                onPressed: onLimpar,
+                icon: const Icon(Icons.clear_rounded, size: 14),
+                label: const Text("Limpar"),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.textSecondary,
+                  textStyle: GoogleFonts.nunito(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.compare_arrows_rounded, size: 16),
+              label: Text(!temSelecao
+                  ? "Selecione ao menos 1"
+                  : "Comparar (${selecionados.length})"),
+              onPressed: !temSelecao || loading ? null : onComparar,
+            ),
+          ]),
+        ),
+
+        // ── Campo de busca ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: TextField(
+            controller: buscaCtrl,
+            onChanged: onBuscaChanged,
+            style: GoogleFonts.nunito(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: "Buscar material pelo nome...",
+              hintStyle: GoogleFonts.nunito(
+                  fontSize: 13, color: AppTheme.textHint),
+              prefixIcon: const Icon(Icons.search_rounded,
+                  size: 18, color: AppTheme.textHint),
+              suffixIcon: buscarTexto.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          size: 16, color: AppTheme.textHint),
+                      onPressed: () {
+                        buscaCtrl.clear();
+                        onBuscaChanged("");
+                      },
+                    )
+                  : null,
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.divider),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.divider),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    const BorderSide(color: AppTheme.primary, width: 1.5),
+              ),
+              filled: true,
+              fillColor: AppTheme.surfaceVariant,
+            ),
+          ),
+        ),
+
+        // ── Contador de resultados ──
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text(
+            buscarTexto.isEmpty
+                ? "${materiais.length} materiais disponíveis"
+                : "${filtrados.length} resultado${filtrados.length != 1 ? 's' : ''} para '$buscarTexto'",
+            style: GoogleFonts.nunito(fontSize: 11, color: AppTheme.textHint),
+          ),
+        ),
+
+        // ── Lista de materiais com scroll interno ──
+        if (materiais.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Text("Nenhum material ativo disponível.",
+                style: GoogleFonts.nunito(
+                    fontSize: 13, color: AppTheme.textHint)),
+          )
+        else if (filtrados.isEmpty)
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
+            child: Row(children: [
+              const Icon(Icons.search_off_rounded,
+                  size: 18, color: AppTheme.textHint),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  "Nenhum material encontrado para '$buscarTexto'.",
+                  style: GoogleFonts.nunito(
+                      fontSize: 13, color: AppTheme.textHint),
+                ),
+              ),
+            ]),
+          )
+        else
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+                bottom: Radius.circular(12)),
+            child: SizedBox(
+              height: 260,
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
+                itemCount: filtrados.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(height: 1, color: AppTheme.divider),
+                itemBuilder: (context, index) {
+                  final m = filtrados[index];
+                  final sel = selecionados.contains(m.id as int);
+                  return InkWell(
+                    onTap: () => onToggle(m.id as int),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      color: sel
+                          ? AppTheme.primary.withValues(alpha: 0.06)
+                          : Colors.transparent,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 11),
+                      child: Row(children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            color: sel
+                                ? AppTheme.primary
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color:
+                                  sel ? AppTheme.primary : AppTheme.divider,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: sel
+                              ? const Icon(Icons.check_rounded,
+                                  size: 12, color: Colors.white)
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            m.nome as String,
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: sel
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: sel
+                                  ? AppTheme.primary
+                                  : AppTheme.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (sel)
+                          const Icon(Icons.check_circle_rounded,
+                              size: 16, color: AppTheme.primary),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
       ]),
     );
   }

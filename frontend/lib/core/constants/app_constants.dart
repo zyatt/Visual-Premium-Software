@@ -10,6 +10,7 @@ class AppConstants {
   static String get ordensCompraUrl => '$baseUrl/ordens-compra';
   static String get estoqueUrl => '$baseUrl/estoque';
   static String get comparativoUrl => '$baseUrl/comparativo';
+  static String get historicoMaterialUrl => '$baseUrl/historico-material';
 
   static const Duration requestTimeout = Duration(seconds: 15);
 
